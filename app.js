@@ -135,15 +135,21 @@ const SECTIONS = [
 ];
 
 // ── URL 路由工具 ──
+const SITEMAP_PATH = 'sitemap.md';
+
 function parseURL() {
   const params = new URLSearchParams(location.search);
-  const path = params.get('path') || '';
+  const index = params.has('index');
+  const path = params.get('path') || (index ? SITEMAP_PATH : '');
   const raw = params.has('raw');
-  return { path, raw };
+  return { path, raw, index };
 }
 
 function makeURL(path, raw) {
   const base = location.pathname;
+  if (path === SITEMAP_PATH) {
+    return base + (raw ? '?index&raw' : '?index');
+  }
   let url = base + '?path=' + encodeURIComponent(path);
   if (raw) url += '&raw';
   return url;
@@ -178,6 +184,19 @@ function findDocByPath(path) {
 
 // ── 构建侧栏导航 ──
 function buildNav() {
+  // 索引入口
+  const indexItem = document.createElement('a');
+  indexItem.className = 'nav-item';
+  indexItem.dataset.path = SITEMAP_PATH;
+  indexItem.href = makeURL(SITEMAP_PATH, false);
+  indexItem.innerHTML = '<span class="num">IDX</span>文档索引';
+  indexItem.addEventListener('click', e => {
+    e.preventDefault();
+    navigateTo(SITEMAP_PATH);
+    closeSidebar();
+  });
+  navEl.appendChild(indexItem);
+
   SECTIONS.forEach(section => {
     const heading = document.createElement('div');
     heading.className = 'nav-heading';
@@ -242,8 +261,8 @@ async function loadRawDoc(path) {
 // ── 渲染 Markdown 模式 ──
 async function loadDoc(path) {
   if (!path) {
-    // 默认加载首页
-    path = docIndex[0].base + docIndex[0].file;
+    // 无参数时展示索引页
+    path = SITEMAP_PATH;
     history.replaceState({ path }, '', makeURL(path, false));
   }
 
@@ -295,6 +314,25 @@ async function loadDoc(path) {
         });
       }
     });
+
+    // sitemap 页面：把代码块里的路径转为可点击链接
+    if (path === SITEMAP_PATH) {
+      contentEl.querySelectorAll('code').forEach(el => {
+        const text = el.textContent.trim();
+        const match = docIndex.find(d => d.base + d.file === text);
+        if (match) {
+          const a = document.createElement('a');
+          a.href = makeURL(match.base + match.file, false);
+          a.textContent = text;
+          a.addEventListener('click', e => {
+            e.preventDefault();
+            navigateTo(match.base + match.file);
+          });
+          el.innerHTML = '';
+          el.appendChild(a);
+        }
+      });
+    }
 
     contentEl.scrollTop = 0;
   } catch (err) {
