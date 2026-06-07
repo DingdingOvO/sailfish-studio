@@ -1,6 +1,7 @@
 /* ============================================================
    Sailfish Studio - 文档浏览器核心脚本
-   功能: SPA 导航, Markdown 渲染, 语法高亮, 响应式侧栏
+   URL 路由: ?path=docs/design/architecture/01-process-model.md
+   纯文本:  ?path=docs/design/architecture/01-process-model.md&raw
    ============================================================ */
 
 // ── 文档索引 ──
@@ -133,13 +134,36 @@ const SECTIONS = [
   },
 ];
 
+// ── URL 路由工具 ──
+function parseURL() {
+  const params = new URLSearchParams(location.search);
+  const path = params.get('path') || '';
+  const raw = params.has('raw');
+  return { path, raw };
+}
+
+function makeURL(path, raw) {
+  const base = location.pathname;
+  let url = base + '?path=' + encodeURIComponent(path);
+  if (raw) url += '&raw';
+  return url;
+}
+
+function navigateTo(path, pushState) {
+  const url = makeURL(path, false);
+  if (pushState !== false) {
+    history.pushState({ path }, '', url);
+  }
+  loadDoc(path);
+}
+
 // ── DOM 引用 ──
 const contentEl = document.getElementById('content');
 const navEl = document.getElementById('nav');
 const breadcrumbEl = document.getElementById('breadcrumb');
+const rawToggleEl = document.getElementById('raw-toggle');
 
 // ── 构建全局文档索引 ──
-let globalIdx = 0;
 const docIndex = [];
 SECTIONS.forEach(section => {
   section.docs.forEach(doc => {
@@ -147,28 +171,33 @@ SECTIONS.forEach(section => {
   });
 });
 
+// 根据 path 查找文档信息
+function findDocByPath(path) {
+  return docIndex.find(d => d.base + d.file === path);
+}
+
 // ── 构建侧栏导航 ──
 function buildNav() {
-  let idx = 0;
   SECTIONS.forEach(section => {
     const heading = document.createElement('div');
     heading.className = 'nav-heading';
     heading.textContent = section.title;
     navEl.appendChild(heading);
+
     section.docs.forEach(doc => {
+      const path = section.base + doc.file;
       const a = document.createElement('a');
       a.className = 'nav-item';
-      a.dataset.idx = idx;
-      a.href = '#' + section.base + doc.file.replace('.md', '');
+      a.dataset.path = path;
+      a.href = makeURL(path, false);
       const numSpan = doc.num ? `<span class="num">${doc.num}</span>` : '';
       a.innerHTML = `${numSpan}${doc.label}`;
       a.addEventListener('click', e => {
         e.preventDefault();
-        loadDoc(idx);
+        navigateTo(path);
         closeSidebar();
       });
       navEl.appendChild(a);
-      idx++;
     });
   });
 }
@@ -187,45 +216,81 @@ marked.setOptions({
   }
 });
 
-// ── 加载文档 ──
-let currentIdx = -1;
+// ── 当前路径 ──
+let currentPath = '';
 
-async function loadDoc(idx) {
-  if (idx === currentIdx) return;
-  currentIdx = idx;
-  const doc = docIndex[idx];
-  if (!doc) return;
+// ── 渲染纯文本模式 ──
+async function loadRawDoc(path) {
+  // 纯文本模式：直接 fetch 并以 <pre> 原样展示，无任何 CSS/渲染
+  try {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+
+    // 直接替换整个 body 为纯文本，最干净
+    document.body.innerHTML = '';
+    document.body.style.cssText = 'margin:0;padding:16px;background:#fff;color:#333;font-family:monospace;font-size:14px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;';
+    document.body.textContent = text;
+    document.title = path.split('/').pop();
+  } catch (err) {
+    document.body.innerHTML = '';
+    document.body.style.cssText = 'margin:16px;color:red;font-family:monospace;';
+    document.body.textContent = '加载失败: ' + err.message;
+  }
+}
+
+// ── 渲染 Markdown 模式 ──
+async function loadDoc(path) {
+  if (!path) {
+    // 默认加载首页
+    path = docIndex[0].base + docIndex[0].file;
+    history.replaceState({ path }, '', makeURL(path, false));
+  }
+
+  if (path === currentPath) return;
+  currentPath = path;
 
   // 更新导航高亮
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', parseInt(el.dataset.idx) === idx);
+    el.classList.toggle('active', el.dataset.path === path);
   });
 
   // 面包屑
-  const section = SECTIONS.find(s => s.docs.some(d => d.file === doc.file && s.base === doc.base));
-  breadcrumbEl.innerHTML = `${section ? section.title : 'Sailfish Studio'} / <span>${doc.label}</span>`;
+  const doc = findDocByPath(path);
+  const section = doc ? SECTIONS.find(s => s.base === doc.base) : null;
+  const displayName = doc ? doc.label : path.split('/').pop();
+  breadcrumbEl.innerHTML = `${section ? section.title : ''} ${section ? '/' : ''} <span>${displayName}</span>`;
+
+  // 更新 raw 切换按钮链接
+  if (rawToggleEl) {
+    rawToggleEl.href = makeURL(path, true);
+    rawToggleEl.title = '查看纯文本';
+  }
+
+  // 更新文档标题
+  document.title = displayName + ' - Sailfish Studio 文档';
 
   // 加载状态
   contentEl.innerHTML = '<div class="loading"><div class="spinner"></div>加载文档中…</div>';
 
   try {
-    const res = await fetch(doc.base + doc.file);
+    const res = await fetch(path);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const md = await res.text();
     contentEl.innerHTML = '<div class="markdown-body">' + marked.parse(md) + '</div>';
 
-    // 拦截内部链接
+    // 拦截内部 Markdown 链接
     contentEl.querySelectorAll('a[href^="./"]').forEach(a => {
       const href = a.getAttribute('href');
       const targetFile = href.replace('./', '');
-      const targetIdx = docIndex.findIndex(d => {
-        const fullPath = d.base + d.file;
-        return fullPath === doc.base + targetFile || fullPath.endsWith('/' + targetFile);
-      });
+      // 解析为真实路径
+      const dir = path.substring(0, path.lastIndexOf('/') + 1);
+      const targetPath = dir + targetFile;
+      const targetIdx = docIndex.findIndex(d => d.base + d.file === targetPath);
       if (targetIdx !== -1) {
         a.addEventListener('click', e => {
           e.preventDefault();
-          loadDoc(targetIdx);
+          navigateTo(targetPath);
           contentEl.scrollTop = 0;
         });
       }
@@ -250,12 +315,31 @@ window.closeSidebar = function() {
 // ── 初始化 ──
 function init() {
   buildNav();
-  const hash = location.hash.replace('#', '');
-  const idx = docIndex.findIndex(d =>
-    (d.base + d.file.replace('.md', '')).endsWith(hash) ||
-    d.file.replace('.md', '') === hash
-  );
-  loadDoc(idx !== -1 ? idx : 0);
+
+  const { path, raw } = parseURL();
+
+  if (raw && path) {
+    // 纯文本模式：跳过一切 UI 渲染
+    loadRawDoc(path);
+    return;
+  }
+
+  if (path) {
+    loadDoc(path);
+  } else {
+    loadDoc('');
+  }
 }
-window.addEventListener('hashchange', init);
+
+// 浏览器前进/后退
+window.addEventListener('popstate', (e) => {
+  const { path, raw } = parseURL();
+  if (raw && path) {
+    loadRawDoc(path);
+  } else {
+    currentPath = ''; // 强制重新加载
+    loadDoc(path || '');
+  }
+});
+
 init();

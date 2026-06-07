@@ -38,6 +38,8 @@
     <div class="main-header">
       <button class="menu-btn" onclick="toggleSidebar()" aria-label="菜单">☰</button>
       <div class="breadcrumb" id="breadcrumb">Sailfish Studio / <span>README</span></div>
+      <div style="flex:1"></div>
+      <a id="raw-toggle" class="raw-toggle" href="#" title="查看纯文本">Raw</a>
     </div>
     <div class="content" id="content">
       <div class="loading"><div class="spinner"></div>加载文档中…</div>
@@ -45,28 +47,18 @@
   </div>
 
   <!-- 外部脚本：按依赖顺序动态加载 -->
-  <!-- 1. marked - Markdown 渲染 -->
   <script defer src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-  <!-- 2. highlight.js core -->
   <script defer src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/core.min.js"></script>
-  <!-- 3. 应用主逻辑 -->
   <script defer src="app.js"></script>
 
-  <!-- highlight.js 语言包：在 marked/hljs 加载完成后动态注入 -->
+  <!-- highlight.js 语言包：延迟加载 -->
   <script>
     (function() {
       const LANGS = ['bash','c','cpp','css','ini','json','markdown','rust','sql','typescript','xml','yaml'];
-      // 延迟加载语言包，不阻塞首屏
       setTimeout(() => {
         LANGS.forEach(lang => {
           const s = document.createElement('script');
           s.src = `https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/${lang}.min.js`;
-          s.onload = () => {
-            // hljs 全局注册语言（如果已加载）
-            if (window.hljs && window.hljs.registerLanguage) {
-              // highlight.js 的 CDN 脚本会自动注册，这里做 fallback
-            }
-          };
           document.head.appendChild(s);
         });
       }, 200);
