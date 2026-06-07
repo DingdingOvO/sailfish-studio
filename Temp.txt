@@ -1,29 +1,903 @@
-Sailfish Studio 设计文档体系（续）
+Sailfish Studio 完整文档体系
 
-基于上一轮已交付的核心设计文档，以下继续补全剩余的设计文件。
+以下为 Sailfish Studio 项目所需全部文档，按阶段组织。已完成的文档不再重复，此处仅列出新增部分。
 
-补充文件清单
+开发文档 (docs/development/)
+
+01-environment-setup.md
+
+01 - 开发环境搭建
+
+概述
+
+本文档指导开发者搭建 Sailfish Studio 的本地开发环境。
+
+系统要求
+
+· 操作系统: macOS 12+ / Windows 10+ / Ubuntu 20.04+
+· 内存: 16GB+ 推荐
+· 磁盘: 50GB+ 可用空间
+
+安装步骤
+
+1. Rust
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup default stable
+rustup target add wasm32-unknown-unknown
+```
+
+2. Node.js & pnpm
+
+```bash
+# 使用 nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+nvm install 24
+nvm use 24
+corepack enable pnpm
+```
+
+3. wasm-pack
+
+```bash
+cargo install wasm-pack
+```
+
+4. Emscripten (用于 C/C++ 扩展编译)
+
+```bash
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk
+./emsdk install 4.2
+./emsdk activate 4.2
+source ./emsdk_env.sh
+```
+
+5. Tauri CLI (桌面端开发)
+
+```bash
+cargo install tauri-cli
+```
+
+6. 其他工具
+
+```bash
+cargo install cargo-nextest cargo-audit cargo-tarpaulin cargo-fuzz
+pnpm add -g @biomejs/biome @playwright/test
+```
+
+克隆仓库
+
+```bash
+git clone https://github.com/Sailfish-Studio/sf-core.git
+git clone https://github.com/Sailfish-Studio/sf-editor.git
+# ... 其他仓库
+```
+
+验证安装
+
+```bash
+cd sf-editor
+pnpm install
+pnpm build
+pnpm dev
+```
+
+访问 http://localhost:3000，看到编辑器界面即表示成功。
+
+02-project-structure.md
+
+02 - 项目结构与模块职责
+
+概述
+
+Sailfish Studio 采用 Monorepo 架构，6 个主仓库，内部通过 workspace 管理 80+ 细粒度包。
+
+仓库总览
+
+仓库 包数 职责
+sf-core 28 核心运行时、引擎、语言工具链
+sf-editor 13 编辑器 GUI、UI 框架、插件、社区
+sf-tools 8 打包器、CLI、工具
+sf-services 6 云端服务
+sf-extensions 21+ 扩展市场与内容
+sf-docs — 文档站
+
+关键模块依赖关系
+
+· sf-editor → sf-core (通过 Wasm 导入)
+· sf-editor → sf-tools (打包功能调用)
+· sf-extensions → sf-core (扩展运行时依赖)
+· 桌面端 → sf-editor (WebView 加载) + sf-core (sidecar 子进程)
+
+03-coding-standards.md
+
+03 - 编码规范
+
+Rust 规范
+
+· 格式化: cargo fmt --check
+· Lint: cargo clippy -- -D warnings
+· 禁止 unsafe (除非审查批准并附注释)
+· 禁止 unwrap() / expect() (使用 ? 或显式错误处理)
+· 禁止魔法数字 (必须定义为具名常量)
+· 所有公共 API 必须有文档注释 ///
+· 测试覆盖率 ≥ 95%
+
+TypeScript 规范
+
+· 格式化 & Lint: Biome
+· 禁止 any 类型 (除非审查批准并附注释)
+· 禁止魔法数字
+· 所有公共函数必须有 JSDoc
+· 测试覆盖率 ≥ 95%
+
+命名规范
+
+· Rust: snake_case 函数/变量, CamelCase 类型, SCREAMING_SNAKE_CASE 常量
+· TypeScript: camelCase 函数/变量, PascalCase 类/组件, SCREAMING_SNAKE_CASE 常量
+
+04-git-workflow.md
+
+04 - Git 工作流与分支策略
+
+分支策略
+
+· main: 稳定发布分支
+· develop: 开发分支
+· feature/<name>: 功能分支 (从 develop 创建)
+· fix/<name>: 修复分支
+
+Commit Message 规范
+
+遵循 Conventional Commits:
 
 ```
-docs/design/
-├── ui/
-│   ├── 07-components/
-│   │   ├── dropdown.md        # 新增
-│   │   ├── tab-bar.md         # 新增
-│   │   ├── toolbar.md         # 新增
-│   │   ├── panel.md           # 新增
-│   │   └── stage-canvas.md    # 新增
-│   └── 11-mobile-tablet.md    # 新增
-├── architecture/
-│   └── 04-deployment.md       # 新增
-├── language/
-│   ├── 01-lexical-grammar.md  # 新增
-│   ├── 04-block-mapping.md    # 新增
-│   ├── 05-standard-library.md # 新增
-│   └── 06-vscode-extension.md # 新增
-├── extensions/
-│   ├── 01-extension-api.md    # 新增
-│   ├── 02-extension-lifecycle.md # 新增
+<type>(<scope>): <description>
+```
+
+类型: feat, fix, docs, style, refactor, test, chore
+
+PR 流程
+
+1. 创建 feature 分支
+2. 开发并自测
+3. 提交 PR 到 develop
+4. CI 自动检查 (格式、lint、测试、覆盖率)
+5. 至少一人 Code Review 并批准
+6. 合并到 develop
+
+05-build-system.md
+
+05 - 构建系统
+
+概述
+
+使用 Turbopack 作为统一构建工具。构建流程: wasm-pack build → Turbopack 打包。
+
+构建命令
+
+```bash
+# Web 端
+cd sf-editor
+pnpm build          # 生产构建
+pnpm dev            # 开发服务器
+
+# 桌面端
+cd sf-desktop
+cargo tauri build   # 原生应用打包
+
+# AOT 编译
+sf build project.sf --target windows
+```
+
+构建产物
+
+· Web 端: sf-editor/dist/ (静态站点)
+· 桌面端: .dmg / .msi / .AppImage
+· 运行时: 原生二进制文件
+
+06-testing-guide.md
+
+06 - 测试指南
+
+测试类型
+
+类型 工具 命令
+Rust 单元测试 cargo-nextest cargo nextest run
+Rust 覆盖率 cargo-tarpaulin cargo tarpaulin
+TS 单元测试 Vitest pnpm test
+E2E 测试 Playwright pnpm e2e
+模糊测试 cargo-fuzz cargo fuzz run fuzz_target
+
+编写测试
+
+· 单元测试放在 tests/ 目录
+· 测试数据放在 test_data/ 目录
+· 测试函数命名: test_<模块>_<场景>_<预期结果>
+
+07-debugging-guide.md
+
+07 - 调试指南
+
+调试控制台
+
+在编辑器中按 Ctrl+Shift+D 打开调试控制台。
+
+日志过滤
+
+```bash
+# 仅显示 VM 模块的 ERROR 级别日志
+log filter vm level error
+
+# 开启调试模式
+debug on
+```
+
+Wasm 调试
+
+· 浏览器: 使用 Chrome DevTools 的 Wasm 调试支持
+· 桌面端: 使用 lldb 或 gdb 附加到扩展进程
+
+远程调试桌面端
+
+```bash
+# 启动 Tauri 开发模式，启用远程调试
+cargo tauri dev -- --remote-debugging-port=9222
+```
+
+然后在 Chrome 中访问 chrome://inspect。
+
+08-release-process.md
+
+08 - 发布流程
+
+版本号规则
+
+遵循 SemVer: 主版本.次版本.修订号
+
+发布步骤
+
+1. 在 develop 分支确认所有功能冻结
+2. 更新 CHANGELOG.md
+3. 提交 PR 合并到 main
+4. 打 Tag: git tag v1.0.0-beta
+5. CI 自动构建并发布:
+   · Web 端部署到 Cloudflare Pages
+   · 桌面端发布到 GitHub Releases
+   · 运行时 CLI 发布到 npm / crates.io
+
+回滚策略
+
+· Cloudflare Pages: 在 Dashboard 中选择上一版本回滚
+· 桌面端: GitHub Releases 保留旧版本下载链接
+
+API 参考文档 (docs/api/)
+
+01-sf-vm-api.md
+
+01 - sf-vm WASM 导出接口
+
+概述
+
+sf-vm 编译为 WebAssembly 后，导出以下函数供 JavaScript 调用。
+
+函数列表
+
+sf_vm_create() -> u32
+
+创建新的 RuntimeState，返回指针句柄。
+
+sf_vm_execute(handle: u32, opcode: *const u8, opcode_len: u32, args_json: *const u8, args_len: u32) -> u64
+
+执行积木操作。opcode 为 UTF-8 字符串，args_json 为 JSON 格式参数。返回值高 32 位为错误码 (0 成功)，低 32 位为结果指针。
+
+sf_vm_destroy(handle: u32)
+
+销毁 RuntimeState，释放内存。
+
+sf_vm_compile(handle: u32, project_json: *const u8, json_len: u32) -> u64
+
+编译项目，返回 JS 代码字符串指针。
+
+sf_vm_get_variable(handle: u32, var_name: *const u8, name_len: u32) -> u64
+
+获取变量值。
+
+sf_vm_set_variable(handle: u32, var_name: *const u8, name_len: u32, value_json: *const u8, value_len: u32) -> u32
+
+设置变量值，返回 0 成功。
+
+02-extension-api.md
+
+02 - 扩展 API 完整参考
+
+JavaScript API
+
+```js
+class MyExtension {
+  // 扩展信息 (必需)
+  static get info() { return { id, name, version, description, author }; }
+
+  // 积木定义 (必需)
+  static getBlocks() { return [ { opcode, blockType, text, arguments } ]; }
+
+  // 积木执行 (必需)
+  static execute(opcode, args, runtime) { /* 返回 Value 或 Promise<Value> */ }
+
+  // 设置定义 (可选)
+  static getSettings() { return [ { key, type, default, title } ]; }
+
+  // 生命周期 (可选)
+  static onInstall() { }
+  static onUninstall() { }
+}
+
+Scratch.extensions.register(new MyExtension());
+```
+
+Rust API
+
+```rust
+impl SfExtension for MyExtension {
+    fn info(&self) -> ExtensionInfo { ... }
+    fn blocks(&self) -> Vec<BlockDefinition> { ... }
+    fn execute(&self, opcode: &str, args: &[Value], state: &mut RuntimeState) -> Option<Value> { ... }
+    fn settings(&self) -> Vec<SettingDefinition> { ... }
+    fn on_install(&self) { ... }
+    fn on_uninstall(&self) { ... }
+}
+```
+
+03-plugin-api.md
+
+03 - 插件 API 完整参考
+
+注册
+
+```js
+sailfish.plugins.register({
+  id: 'my-plugin',
+  name: 'My Plugin',
+  version: '1.0.0',
+  permissions: ['ui', 'theme'],
+  activate() { /* 插件激活 */ },
+  deactivate() { /* 插件停用 */ }
+});
+```
+
+UI 扩展
+
+```js
+// 添加面板
+sailfish.ui.registerPanel({ id, title, icon, render, position: 'right' });
+
+// 添加工具栏按钮
+sailfish.ui.addToolbarButton({ id, icon, tooltip, onClick, position: 'left' });
+
+// 注册右键菜单
+sailfish.ui.registerContextMenu({ id, label, icon, predicate, action });
+```
+
+主题扩展
+
+```js
+sailfish.theme.register({
+  name: 'My Theme',
+  colors: { primary: '#FF0000', ... },
+  fonts: { sans: '...', mono: '...' }
+});
+```
+
+快捷键
+
+```js
+sailfish.shortcuts.register('my-command', {
+  key: 'Ctrl+Shift+M',
+  callback: () => { ... }
+});
+```
+
+编辑器钩子
+
+```js
+sailfish.hooks.onProjectOpen((project) => { ... });
+sailfish.hooks.onBeforeSave((project) => { ... });
+sailfish.hooks.onAfterCompile((jsCode) => { ... });
+```
+
+04-ipc-api.md
+
+04 - IPC 协议完整参考
+
+协议格式
+
+JSON-RPC 2.0:
+
+```json
+{ "jsonrpc": "2.0", "id": "1", "method": "method/name", "params": {} }
+```
+
+渲染进程 → 扩展进程
+
+方法 参数 返回 说明
+project/open { projectId, path } { status } 打开项目
+project/close { projectId } { status } 关闭项目
+project/compile { projectId } { jsCode } 编译项目
+project/run { projectId } { status } 开始执行
+project/stop { projectId } { status } 停止执行
+block/update { blockId, field, value } { status } 更新积木
+variable/set { varId, value } { status } 设置变量
+
+扩展进程 → 渲染进程
+
+方法 参数 说明
+render/commands { commands: [] } 绘制指令列表
+project/state { variables, lists, clones } 状态更新
+log/entry { level, source, type, message } 日志条目
+error/report { code, message, stack } 错误报告
+
+05-collab-api.md
+
+05 - 协作 API 参考
+
+WebSocket 连接
+
+```
+wss://collab.sailfish.studio/room/{roomId}?token={authToken}
+```
+
+客户端 → 服务器
+
+消息类型 说明
+join 加入房间
+leave 离开房间
+operation 提交操作 (OT)
+cursor_move 光标位置更新
+selection_change 选中内容变化
+ping 心跳
+
+服务器 → 客户端
+
+消息类型 说明
+user_joined 用户加入
+user_left 用户离开
+operation_ack 操作确认
+operation_broadcast 操作广播
+cursor_broadcast 光标位置广播
+presence_update 用户状态更新
+conflict 冲突通知
+
+REST API
+
+端点 方法 说明
+/rooms POST 创建房间
+/rooms/{id} GET 获取房间信息
+/rooms/{id}/invite POST 生成邀请链接
+/rooms/{id}/members GET 获取成员列表
+/rooms/{id}/members/{uid} DELETE 移除成员
+
+运维文档 (docs/operations/)
+
+01-deployment-guide.md
+
+01 - 部署指南
+
+Web 端 (Cloudflare Pages)
+
+1. 在 Cloudflare Dashboard 创建 Pages 项目
+2. 关联 sf-editor 仓库
+3. 构建命令: pnpm build
+4. 构建输出目录: dist/
+5. 绑定域名: editor.sailfish.studio
+
+扩展市场 (Cloudflare Pages)
+
+1. 关联 sf-extensions 仓库
+2. 构建命令: pnpm build
+3. 构建输出目录: dist/
+4. 绑定域名: extensions.sailfish.studio
+
+文档站 (Cloudflare Pages)
+
+1. 关联 sf-docs 仓库
+2. 构建命令: pnpm build (VitePress)
+3. 绑定域名: docs.sailfish.studio
+
+云变量服务 (Cloudflare Workers)
+
+1. 进入 sf-services 目录
+2. 运行 wrangler deploy
+3. 绑定路由: api.sailfish.studio/*
+
+桌面端 (GitHub Releases)
+
+1. 运行 cargo tauri build
+2. 上传构建产物到 GitHub Releases
+3. 生成更新清单 (update.json)
+
+02-monitoring.md
+
+02 - 监控与告警
+
+错误追踪 (Sentry)
+
+· 集成 Sentry SDK 到编辑器和扩展进程
+· 告警规则: 5 分钟内 10 个以上错误触发通知
+
+性能监控 (Cloudflare Analytics)
+
+· Web 端: 页面加载时间、Web Vitals (LCP、FID、CLS)
+· API 端: 请求延迟、错误率、QPS
+
+自定义指标
+
+· 协作房间数、活跃用户数
+· 扩展安装量
+· Wasm 内存使用趋势
+
+告警渠道
+
+· 严重事件 (P0/P1): Slack + 邮件 + 电话
+· 一般事件 (P2/P3): Slack 通知
+
+03-backup-restore.md
+
+03 - 备份与恢复
+
+备份策略
+
+· 云变量数据: 每日全量备份，保留 30 天
+· 协作房间状态: 每 10 分钟增量快照
+· 数据库: 每日全量备份 + 持续 WAL 归档
+
+恢复流程
+
+1. 确认备份可用性
+2. 停止相关服务
+3. 从备份恢复数据
+4. 验证数据完整性
+5. 重启服务
+
+灾难恢复演练
+
+· 每季度一次
+· 记录恢复时间目标 (RTO) 和恢复点目标 (RPO)
+
+04-incident-response.md
+
+04 - 事件响应流程
+
+事件分级
+
+等级 定义 响应时间 示例
+P0 服务完全不可用 15 分钟 编辑器无法打开
+P1 核心功能不可用 30 分钟 协作功能完全失效
+P2 部分功能异常 2 小时 扩展市场搜索失败
+P3 非关键问题 24 小时 UI 显示异常
+
+响应流程
+
+1. 发现事件 (自动告警或人工报告)
+2. 确认事件等级
+3. 指定事件指挥官
+4. 组建响应小组
+5. 调查原因
+6. 实施修复
+7. 验证修复效果
+8. 撰写事后复盘报告
+
+事后复盘模板
+
+· 事件概述、时间线、根因分析、修复措施、预防措施、责任人
+
+05-performance-tuning.md
+
+05 - 性能调优
+
+Wasm 内存优化
+
+· 使用 wasm-opt -Os 压缩
+· 启用 wee_alloc 轻量分配器
+· 资源懒加载，避免全量加载到 Wasm 内存
+
+渲染性能
+
+· 使用 WebGL 批量绘制 (按纹理排序)
+· 脏矩形检测避免全画布重绘
+· 克隆体使用对象池
+
+CDN 缓存策略
+
+· 静态资源: max-age=31536000 (一年)
+· HTML 文件: max-age=0 (每次验证)
+· API 响应: max-age=60 (1 分钟)
+
+数据库查询优化
+
+· 积木树查询使用预编译语句
+· 资源 BLOB 仅在需要时读取
+· 定期 VACUUM 清理碎片
+
+用户文档 (docs/user/)
+
+01-getting-started.md
+
+01 - 快速入门
+
+欢迎来到 Sailfish Studio！
+
+Sailfish Studio 是一个高性能的图形化编程平台。您可以在这里创作游戏、动画、应用，甚至开发服务器后端。
+
+访问 Sailfish Studio
+
+· Web 版: 打开浏览器，访问 https://editor.sailfish.studio
+· 桌面版: 从 GitHub Releases 下载安装包
+
+认识界面
+
+1. 工具栏: 绿旗(运行)、停止、保存、撤销/重做
+2. 工具箱: 左侧，包含所有可用积木
+3. 积木编辑区: 中间，拖拽积木的地方
+4. 舞台: 右上角，项目运行显示区域
+5. 角色列表: 右下角，管理所有角色
+
+创建第一个项目
+
+1. 点击工具栏的“新建”按钮
+2. 从工具箱拖一个“说 (你好!)”积木到编辑区
+3. 从工具箱拖一个“当绿旗被点击”积木，连接到上方
+4. 点击绿旗按钮
+5. 舞台上角色说出“你好!”
+
+保存项目
+
+· 按 Ctrl+S 或点击工具栏“保存”
+· 项目保存为 .sf 文件
+
+02-block-reference.md
+
+02 - 积木参考
+
+运动类
+
+· 移动 (N) 步: 让角色向前移动 N 步
+· 右转 (N) 度: 让角色顺时针旋转 N 度
+· 左转 (N) 度: 让角色逆时针旋转 N 度
+· 移到 x: (X) y: (Y): 瞬间移动角色到指定坐标
+· 在 (N) 秒内滑行到 x: (X) y: (Y): 平滑移动角色
+
+外观类
+
+· 说 (文本) (N) 秒: 角色显示对话气泡
+· 切换造型为 (造型名): 切换角色造型
+· 将大小增加 (N): 改变角色大小
+
+声音类
+
+· 播放声音 (声音名): 播放声音
+· 停止所有声音: 停止所有正在播放的声音
+· 将音量设为 (N)%: 设置音量
+
+事件类
+
+· 当绿旗被点击: 项目启动时触发
+· 当接收到 (消息): 收到广播时触发
+· 广播 (消息): 发送广播消息
+
+控制类
+
+· 等待 (N) 秒: 暂停执行 N 秒
+· 重复 (N) 次: 循环执行内部积木 N 次
+· 如果 (条件) 那么: 条件判断
+· 克隆 (角色): 创建角色副本
+
+侦测类
+
+· 碰到 (目标)?: 检测是否碰到指定目标
+· 鼠标的 x 坐标: 获取鼠标 X 坐标
+· 回答: 获取询问的回答
+
+运算类
+
+· (A) + (B): 加法
+· (A) - (B): 减法
+· (A) * (B): 乘法
+· (A) / (B): 除法
+· 随机数 (min) 到 (max): 生成随机数
+
+变量类
+
+· 设置 (变量) 为 (值): 变量赋值
+· 将 (变量) 增加 (N): 变量增量
+· 显示变量 (变量): 在舞台上显示变量监视器
+
+03-sfl-guide.md
+
+03 - .sfl 语言指南
+
+概述
+
+.sfl 是 Sailfish Studio 的纯文本编程语言，与积木一一对应。可以用文本编辑器编写，然后在编辑器中导入为积木，也可以直接通过 SF Runtime 运行。
+
+变量与类型
+
+```
+var score: number = 0          # 双精度浮点数
+let name: string = "Player"    # 字符串
+const MAX: number = 100        # 常量
+var flag: bool = true          # 布尔值
+var items: list<number> = [1, 2, 3]  # 列表
+var player: struct { name: string, hp: number } = { name: "Hero", hp: 100 }
+```
+
+控制流
+
+```
+if score > 100:
+    broadcast "win"
+else:
+    broadcast "continue"
+
+repeat 10:
+    this.moveSteps(10)
+
+forever:
+    this.nextFrame()
+```
+
+函数
+
+```
+func greet(name: string) -> void:
+    this.say("Hello, " + name)
+
+func add(a: number, b: number) -> number:
+    return a + b
+```
+
+广播
+
+```
+broadcast "game_start"
+broadcast "game_over" and wait
+
+on "game_start":
+    this.show()
+```
+
+04-extension-guide.md
+
+04 - 扩展使用指南
+
+浏览扩展
+
+1. 点击编辑器菜单: 扩展 → 扩展市场
+2. 在市场中搜索、浏览扩展
+3. 点击扩展查看详情
+
+安装扩展
+
+1. 在扩展详情页点击“安装”
+2. 安装完成后，扩展的积木出现在工具箱中
+3. 扩展积木与内置积木使用方式完全一致
+
+管理扩展
+
+· 点击菜单: 扩展 → 已安装扩展
+· 查看已安装列表
+· 启用/禁用扩展
+· 卸载不再需要的扩展
+
+手动安装社区扩展
+
+1. 从社区渠道下载扩展文件 (.sf-ext)
+2. 将文件拖入编辑器窗口
+3. 确认安装
+
+05-collaboration-guide.md
+
+05 - 协作指南
+
+发起协作
+
+1. 打开一个项目
+2. 点击工具栏的“分享”按钮
+3. 选择邀请方式:
+   · 输入好友用户名或邮箱
+   · 生成分享链接 (可设置权限和有效期)
+
+加入协作
+
+· 收到邀请后，在通知中心点击“接受”
+· 或打开分享链接，直接加入
+
+权限说明
+
+角色 编辑 增删角色 导出 邀请
+所有者 ✅ ✅ ✅ ✅
+编辑者 ✅ ✅ ✅ ❌
+评论者 ❌ ❌ ❌ ❌
+查看者 ❌ ❌ ❌ ❌
+
+实时编辑
+
+· 每个用户的光标以不同颜色显示
+· 正在编辑的积木显示编辑者的颜色边框
+· 评论功能: 右键积木 → 添加评论，支持 @提及其他用户
+
+06-faq.md
+
+06 - 常见问题
+
+性能相关
+
+Q: 项目运行卡顿怎么办？
+A: 尝试以下方法: (1) 减少克隆体数量 (2) 使用加速模式 (3) 在菜单中运行“优化所有资源”压缩素材 (4) 检查内存仪表盘是否超过限制。
+
+Q: 大文件导入很慢？
+A: 图片超过 10MB 时会收到警告。建议在导入前压缩图片 (编辑器内置一键优化功能)。
+
+文件相关
+
+Q: .sf 和 .sb3 有什么区别？
+A: .sf 是 Sailfish Studio 的新格式 (SQLite 数据库)，比 .sb3 (ZIP) 更紧凑，支持实时保存和增量写入。Sailfish Studio 同时兼容 .sb3 和 .sb2。
+
+Q: 如何将 .sb3 项目转为 .sf？
+A: 在编辑器中打开 .sb3 文件，然后“另存为”选择 .sf 格式即可。
+
+协作相关
+
+Q: 协作时冲突怎么办？
+A: 积木树冲突自动解决。变量以最后写入为准。造型编辑期间锁定，不会产生冲突。离线编辑后恢复连接时如有冲突，系统会弹出对话框让您选择保留哪个版本。
+
+Q: 最多多少人同时协作？
+A: 单个房间最多 32 人。
+
+扩展相关
+
+Q: 如何开发扩展？
+A: 参考扩展开发文档 (API 参考)，使用 JS、Rust 或 C++ 编写，提交到扩展市场。
+
+Q: 社区渠道的扩展安全吗？
+A: 社区渠道的扩展未经官方审核，可能包含风险。请谨慎安装，或在安装前查看社区评价。
+
+桌面端相关
+
+Q: 桌面版和 Web 版有什么区别？
+A: 功能基本一致。桌面版支持离线使用、原生文件对话框、自动更新、更好的性能 (原生子进程)。
+
+Q: 如何更新桌面版？
+A: 桌面版启动时自动检查更新，有新版本会提示下载安装。
+
+快捷键参考
+
+快捷键 功能
+Ctrl+S 保存
+Ctrl+Z 撤销
+Ctrl+Shift+Z 重做
+Ctrl+C 复制
+Ctrl+V 粘贴
+Delete 删除选中积木
+Ctrl+Shift+D 调试控制台
+F5 运行项目
+Esc 停止项目
+Ctrl+0 重置缩放
+
+---
+
+文档完成状态 (最终)
+
+文档集 状态 文件数
+需求文档 (requirements) ✅ 已完成 15
+设计文档 (design) ✅ 已完成 34
+开发文档 (development) ✅ 已完成 8
+API 参考 (api) ✅ 已完成 5
+运维文档 (operations) ✅ 已完成 5
+用户文档 (user) ✅ 已完成 6
+
+总计: 73 个文档文件，全部完成。│   ├── 02-extension-lifecycle.md # 新增
 │   ├── 03-plugin-api.md       # 新增
 │   ├── 04-sandbox-model.md    # 新增
 │   └── 05-marketplace.md      # 新增
