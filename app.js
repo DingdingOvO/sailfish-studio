@@ -132,6 +132,54 @@ const SECTIONS = [
       { file: '04-fuzzing-strategy.md',      label: '模糊测试',     num: 'T4' },
     ]
   },
+  {
+    title: '开发文档',
+    base: 'docs/development/',
+    docs: [
+      { file: '01-environment-setup.md',   label: '开发环境搭建', num: 'D1' },
+      { file: '02-project-structure.md',   label: '项目结构',     num: 'D2' },
+      { file: '03-coding-standards.md',    label: '编码规范',     num: 'D3' },
+      { file: '04-git-workflow.md',        label: 'Git 工作流',   num: 'D4' },
+      { file: '05-build-system.md',        label: '构建系统',     num: 'D5' },
+      { file: '06-testing-guide.md',       label: '测试指南',     num: 'D6' },
+      { file: '07-debugging-guide.md',     label: '调试指南',     num: 'D7' },
+      { file: '08-release-process.md',     label: '发布流程',     num: 'D8' },
+    ]
+  },
+  {
+    title: 'API 参考',
+    base: 'docs/api/',
+    docs: [
+      { file: '01-sf-vm-api.md',      label: 'sf-vm WASM 接口', num: 'R1' },
+      { file: '02-extension-api.md',   label: '扩展 API',        num: 'R2' },
+      { file: '03-plugin-api.md',      label: '插件 API',        num: 'R3' },
+      { file: '04-ipc-api.md',         label: 'IPC 协议',        num: 'R4' },
+      { file: '05-collab-api.md',      label: '协作 API',        num: 'R5' },
+    ]
+  },
+  {
+    title: '运维文档',
+    base: 'docs/operations/',
+    docs: [
+      { file: '01-deployment-guide.md',    label: '部署指南',     num: 'O1' },
+      { file: '02-monitoring.md',          label: '监控与告警',   num: 'O2' },
+      { file: '03-backup-restore.md',      label: '备份与恢复',   num: 'O3' },
+      { file: '04-incident-response.md',   label: '事件响应',     num: 'O4' },
+      { file: '05-performance-tuning.md',  label: '性能调优',     num: 'O5' },
+    ]
+  },
+  {
+    title: '用户文档',
+    base: 'docs/user/',
+    docs: [
+      { file: '01-getting-started.md',     label: '快速入门',     num: 'U1' },
+      { file: '02-block-reference.md',     label: '积木参考',     num: 'U2' },
+      { file: '03-sfl-guide.md',           label: '.sfl 语言指南', num: 'U3' },
+      { file: '04-extension-guide.md',     label: '扩展使用指南', num: 'U4' },
+      { file: '05-collaboration-guide.md', label: '协作指南',     num: 'U5' },
+      { file: '06-faq.md',                 label: '常见问题',     num: 'U6' },
+    ]
+  },
 ];
 
 // ── URL 路由工具 ──

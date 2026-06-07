@@ -116,3 +116,47 @@
 | T2 | 性能基准 | `docs/design/testing/02-performance-bench.md` |
 | T3 | 兼容性矩阵 | `docs/design/testing/03-compatibility-matrix.md` |
 | T4 | 模糊测试 | `docs/design/testing/04-fuzzing-strategy.md` |
+
+## 开发文档
+
+| 编号 | 文档 | 路径 |
+|------|------|------|
+| D1 | 开发环境搭建 | `docs/development/01-environment-setup.md` |
+| D2 | 项目结构 | `docs/development/02-project-structure.md` |
+| D3 | 编码规范 | `docs/development/03-coding-standards.md` |
+| D4 | Git 工作流 | `docs/development/04-git-workflow.md` |
+| D5 | 构建系统 | `docs/development/05-build-system.md` |
+| D6 | 测试指南 | `docs/development/06-testing-guide.md` |
+| D7 | 调试指南 | `docs/development/07-debugging-guide.md` |
+| D8 | 发布流程 | `docs/development/08-release-process.md` |
+
+## API 参考
+
+| 编号 | 文档 | 路径 |
+|------|------|------|
+| R1 | sf-vm WASM 接口 | `docs/api/01-sf-vm-api.md` |
+| R2 | 扩展 API | `docs/api/02-extension-api.md` |
+| R3 | 插件 API | `docs/api/03-plugin-api.md` |
+| R4 | IPC 协议 | `docs/api/04-ipc-api.md` |
+| R5 | 协作 API | `docs/api/05-collab-api.md` |
+
+## 运维文档
+
+| 编号 | 文档 | 路径 |
+|------|------|------|
+| O1 | 部署指南 | `docs/operations/01-deployment-guide.md` |
+| O2 | 监控与告警 | `docs/operations/02-monitoring.md` |
+| O3 | 备份与恢复 | `docs/operations/03-backup-restore.md` |
+| O4 | 事件响应 | `docs/operations/04-incident-response.md` |
+| O5 | 性能调优 | `docs/operations/05-performance-tuning.md` |
+
+## 用户文档
+
+| 编号 | 文档 | 路径 |
+|------|------|------|
+| U1 | 快速入门 | `docs/user/01-getting-started.md` |
+| U2 | 积木参考 | `docs/user/02-block-reference.md` |
+| U3 | .sfl 语言指南 | `docs/user/03-sfl-guide.md` |
+| U4 | 扩展使用指南 | `docs/user/04-extension-guide.md` |
+| U5 | 协作指南 | `docs/user/05-collaboration-guide.md` |
+| U6 | 常见问题 | `docs/user/06-faq.md` |
