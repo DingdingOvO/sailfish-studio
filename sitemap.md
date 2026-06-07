@@ -129,6 +129,7 @@
 | D6 | 测试指南 | `docs/development/06-testing-guide.md` |
 | D7 | 调试指南 | `docs/development/07-debugging-guide.md` |
 | D8 | 发布流程 | `docs/development/08-release-process.md` |
+| D9 | 实际开发清单 | `docs/development/09-implementation-checklist.md` |
 
 ## API 参考
 

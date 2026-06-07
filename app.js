@@ -144,6 +144,7 @@ const SECTIONS = [
       { file: '06-testing-guide.md',       label: '测试指南',     num: 'D6' },
       { file: '07-debugging-guide.md',     label: '调试指南',     num: 'D7' },
       { file: '08-release-process.md',     label: '发布流程',     num: 'D8' },
+      { file: '09-implementation-checklist.md',  label: '实际开发清单', num: 'D9' },
     ]
   },
   {
