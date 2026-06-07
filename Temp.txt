@@ -1,589 +1,1020 @@
-Sailfish Studio 需求规格说明书
+Sailfish Studio 设计文档体系（续）
 
-文档版本：1.0-Beta.1
-应用版本：1.0-Beta
-日期：2026-06-07
-项目代号：Sailfish Studio (SFS)
-定位：面向专业创作者的高性能图形化编程与全栈开发平台
-上游：基于 TurboWarp 分叉并全面重写
+基于上一轮已交付的核心设计文档，以下继续补全剩余的设计文件。
 
----
-
-文档结构
+补充文件清单
 
 ```
-docs/requirements/
-├── README.md              # 文档导航
-├── 00-constants.md        # 约定、魔法数字、常量
-├── 01-overview.md         # 定位、目标、边界
-├── 02-concepts.md         # 积木、语言、文件、运行时
-├── 03-architecture.md     # 进程模型、仓库、质量
-├── 04-editor.md           # 编辑器、类型、语言
-├── 05-collaboration.md    # 多人协作
-├── 06-ui.md               # 设计语言、界面
-├── 07-extensions.md       # 扩展与插件
-├── 08-runtime.md          # 运行时、打包、编译
-├── 09-platform.md         # 桌面、移动、Web
-├── 10-debug.md            # 调试与日志
-├── 11-nfr.md              # 性能、安全、兼容
-├── 12-roadmap.md          # 路线图
-├── 13-appendices.md       # 附录
-└── 14-changelog.md        # 变更历史
+docs/design/
+├── ui/
+│   ├── 07-components/
+│   │   ├── dropdown.md        # 新增
+│   │   ├── tab-bar.md         # 新增
+│   │   ├── toolbar.md         # 新增
+│   │   ├── panel.md           # 新增
+│   │   └── stage-canvas.md    # 新增
+│   └── 11-mobile-tablet.md    # 新增
+├── architecture/
+│   └── 04-deployment.md       # 新增
+├── language/
+│   ├── 01-lexical-grammar.md  # 新增
+│   ├── 04-block-mapping.md    # 新增
+│   ├── 05-standard-library.md # 新增
+│   └── 06-vscode-extension.md # 新增
+├── extensions/
+│   ├── 01-extension-api.md    # 新增
+│   ├── 02-extension-lifecycle.md # 新增
+│   ├── 03-plugin-api.md       # 新增
+│   ├── 04-sandbox-model.md    # 新增
+│   └── 05-marketplace.md      # 新增
+├── collaboration/
+│   ├── 03-presence.md         # 新增
+│   ├── 04-conflict-resolution.md # 新增
+│   └── 05-offline-sync.md     # 新增
+├── security/
+│   ├── 01-threat-model.md     # 新增
+│   ├── 02-sandbox-boundaries.md # 新增
+│   ├── 03-permission-model.md # 新增
+│   ├── 04-csp-policy.md       # 新增
+│   └── 05-code-signing.md     # 新增
+└── testing/
+    ├── 02-performance-bench.md # 新增
+    ├── 03-compatibility-matrix.md # 新增
+    └── 04-fuzzing-strategy.md  # 新增
 ```
 
----
+design/ui/07-components/dropdown.md
 
-README.md
+下拉菜单组件规范
 
-```markdown
-# Sailfish Studio 需求规格说明书
+1. 用途
 
-**文档版本**：1.0-Beta.1
-**应用版本**：1.0-Beta
-**日期**：2026-06-07
-**项目代号**：Sailfish Studio (SFS)
+用于菜单栏、右键菜单、选择器、工具栏溢出菜单。
 
-## 关于 Sailfish Studio
+2. 尺寸
 
-Sailfish Studio 是一个面向专业创作者的高性能图形化编程与全栈开发平台。它源于 Scratch 的积木编程理念，通过 Rust 重写核心引擎、自研 UI 框架和纯文本语言，将创作能力从游戏、动画扩展到服务器后端、桌面应用和移动端。
+· 菜单项高度: 32px
+· 菜单项最小宽度: 160px，最大宽度: 320px
+· 图标区域: 24px × 24px，位于文本左侧
+· 快捷键文本: 右对齐，--text-sm，颜色 --text-secondary
+· 分隔线: 1px --border-color，上下内边距 --space-1
 
-## 阅读指南
+3. 嵌套菜单
 
-请从 `01-overview.md` 开始，按顺序阅读。每份文件末尾有上下页链接。
+· 子菜单从父菜单项右侧弹出，弹出前有 100ms 延迟（防止快速划过时意外展开）
+· 子菜单与父菜单间距 4px
+· 嵌套深度最多 3 层，超出时考虑重新组织菜单结构
 
-## 文件清单
+4. 交互
 
-| 文件 | 内容 |
-|------|------|
-| [00-constants.md](./00-constants.md) | 文档约定、魔法数字禁止、常量索引 |
-| [01-overview.md](./01-overview.md) | 项目定位、核心目标、不做的事 |
-| [02-concepts.md](./02-concepts.md) | 积木、.sfl、.sf、Runtime、AOT、扩展、插件 |
-| [03-architecture.md](./03-architecture.md) | 多进程模型、仓库组织、代码质量 |
-| [04-editor.md](./04-editor.md) | 积木编辑器、类型系统、拖拽交互 |
-| [05-collaboration.md](./05-collaboration.md) | 多人实时协作 |
-| [06-ui.md](./06-ui.md) | 设计语言、界面布局 |
-| [07-extensions.md](./07-extensions.md) | 扩展与插件系统 |
-| [08-runtime.md](./08-runtime.md) | 运行时、打包、编译 |
-| [09-platform.md](./09-platform.md) | 桌面端、移动端、Web 端 |
-| [10-debug.md](./10-debug.md) | 调试与日志 |
-| [11-nfr.md](./11-nfr.md) | 性能、安全、兼容、国际化 |
-| [12-roadmap.md](./12-roadmap.md) | 路线图 |
-| [13-appendices.md](./13-appendices.md) | 术语表、扩展清单、语言列表 |
-| [14-changelog.md](./14-changelog.md) | 变更历史 |
+· ↑↓ 键移动焦点，Enter 触发菜单项，Esc 关闭
+· 支持搜索过滤（顶部输入框，按需出现，当菜单项超过 15 个时自动显示搜索框）
+· 菜单项禁用时灰色显示，仍可聚焦但不响应 Enter
+· 关闭菜单后焦点回到触发元素
+
+design/ui/07-components/tab-bar.md
+
+选项卡组件规范
+
+1. 用途
+
+编辑器顶部的项目选项卡切换。
+
+2. 尺寸
+
+· 选项卡高度: 36px
+· 最小宽度: 100px，最大宽度: 200px
+· 选项卡间距: 0（相邻贴合）
+· 图标: 16px，文件类型色
+
+3. 状态
+
+· 选中: 背景色 --bg-surface，底部 2px --color-primary 指示条
+· 未选中: 背景色 --bg-primary，底部无指示条
+· 悬停: 背景色 --bg-surface + 不透明叠加
+· 未保存: 选项卡标签右侧显示圆点（--color-warning，直径 6px）
+
+4. 交互
+
+· 点击选中，双击重命名（进入内联编辑模式）
+· 拖拽排序，拖出选项卡栏可在新窗口打开
+· 关闭按钮：悬停时出现在选项卡右侧，图标 16px
+· 右键菜单：关闭、关闭其他、关闭右侧、关闭所有
+· Ctrl+Tab 切换到下一个选项卡，Ctrl+Shift+Tab 切换到上一个
+
+design/ui/07-components/toolbar.md
+
+工具栏组件规范
+
+1. 用途
+
+编辑器主工具栏，提供常用操作的快捷入口。
+
+2. 尺寸
+
+· 高度: 40px
+· 按钮尺寸: 32px × 32px
+· 图标尺寸: 20px
+· 分隔线: 1px --border-color，垂直，上下内边距 8px
+· 分组间距: --space-3
+
+3. 按钮布局（从左到右）
+
+· 文件操作组: 新建、打开、保存
+· 撤销/重做组: 撤销、重做
+· 运行控制组: 绿旗（运行）、停止
+· 视图控制组: 全屏、舞台尺寸切换（小/大/全屏）
+· 模式切换组: 加速模式开关
+· 协作组（右对齐）: 分享按钮、当前协作用户头像
+
+4. 溢出菜单
+
+· 当工具栏宽度不足以显示所有按钮时，超出的按钮收起到右侧的 "…" 溢出菜单
+· 溢出菜单内容为下拉菜单样式，包含被折叠的按钮
+· 用户可通过拖拽按钮重新排序工具栏
+
+design/ui/07-components/panel.md
+
+面板组件规范
+
+1. 用途
+
+右侧面板区域，包含角色列表、属性面板、造型编辑器、声音编辑器。
+
+2. 尺寸
+
+· 默认宽度: 272px
+· 最小宽度: 160px，最大宽度: 400px
+· 通过拖拽左侧边框调整宽度
+· 面板内容滚动：使用 overflow-y: auto，隐藏滚动条但保留滚动能力（hover 时显示 6px 滚动条）
+
+3. 面板切换
+
+· 顶部选项卡切换不同面板（角色、造型、声音）
+· 选项卡高度: 32px
+· 当前面板类型以 --color-primary 底部指示条标识
+
+4. 面板折叠
+
+· 面板可完全折叠（收起时宽度为 0），通过工具栏按钮或快捷键 Ctrl+Shift+P 切换
+· 折叠/展开过渡: 150ms ease-out，宽度从 0 到实际宽度
+
+design/ui/07-components/stage-canvas.md
+
+舞台画布组件规范
+
+1. 概述
+
+项目运行时的显示区域，由 sf-renderer 提供 WebGL/WebGL2 渲染。所有角色、背景、画笔效果都在此画布上绘制。
+
+2. 尺寸
+
+· 默认舞台尺寸: 480 × 360px（STAGE_DEFAULT_WIDTH × STAGE_DEFAULT_HEIGHT）
+· 最小: 240 × 180px，最大: 3840 × 2160px (4K)
+· 宽高比: 始终 4:3，超出区域用黑色填充（letterbox）
+· 编辑器中舞台默认缩放以适配面板，用户可手动缩放（25%～400%）
+
+3. 渲染层叠顺序（从下到上）
+
+· 背景层（舞台背景图片/颜色填充）
+· 角色层（所有可见角色，按层级排序）
+· 画笔层（所有画笔绘制内容）
+· UI 覆盖层（绿旗按钮、停止按钮，仅在编辑器中显示）
+
+4. 交互（编辑器中）
+
+· 点击角色选中，拖拽移动
+· 右键角色弹出上下文菜单（复制、删除、导出为 .sprite）
+· 双击舞台区域切换全屏
+· 缩放: Ctrl+滚轮 或 双指捏合
+
+5. 运行模式
+
+· 点击绿旗：项目开始执行，角色响应积木逻辑
+· 点击停止：终止所有脚本，重置角色状态
+· 运行中舞台边框显示绿色呼吸灯（--color-success，2px，透明度在 0.3～0.8 间循环，周期 2 秒）
+
+design/ui/11-mobile-tablet.md
+
+平板/触控适配规范
+
+1. 概述
+
+针对 Android 平板 (最小 1024×768 逻辑像素) 的触控优化设计。
+
+2. 布局变化
+
+· 竖屏: 积木画布占据上半部分 (60%)，工具箱折叠为底部横条，舞台缩小到右上角悬浮窗
+· 横屏: 与桌面布局相同，但面板宽度缩减为 200px
+· 所有面板可通过边缘滑动手势唤出/隐藏
+
+3. 触控优化
+
+· 积木块最小触控区域: 44×44px (符合 iOS/Android 无障碍触控标准)
+· 吸附距离在触控模式下扩大到 12px（手指精度低于鼠标）
+· 双指捏合缩放积木画布，双指旋转切换角色方向
+· 长按积木 500ms 触发右键菜单（等同于桌面端右键）
+· 双手同时拖拽不同积木：支持独立的多点触控跟踪
+
+4. 暂存区
+
+· 屏幕底部面板，从底部上滑唤出
+· 拖出窗口改为拖到屏幕边缘触发分享菜单或保存菜单
+· 拖入通过系统文件选择器或分屏拖拽实现
+
+design/architecture/04-deployment.md
+
+04 - 部署拓扑
+
+1. 概述
+
+Sailfish Studio 支持两种部署模式：静态 Web 站点和桌面应用。
+
+2. Web 端部署 (Cloudflare Pages)
+
+· 构建产物: sf-editor 的 Next.js 静态导出 (output: 'export')
+· 部署到 Cloudflare Pages，绑定域名 editor.sailfish.studio
+· 扩展市场部署到 extensions.sailfish.studio
+· 文档站部署到 docs.sailfish.studio
+· 云变量 Worker 部署到 api.sailfish.studio
+
+3. 桌面端部署 (GitHub Releases)
+
+· 构建产物: Tauri 打包的 .dmg (macOS)、.msi (Windows)、.AppImage (Linux)
+· 通过 GitHub Releases 分发，集成自动更新
+· 代码签名: macOS 需 Developer ID 公证，Windows 需 EV Code Signing Certificate
+
+4. 扩展进程部署
+
+· 桌面端: 扩展进程二进制包含在 Tauri 安装包中，位于 resources/sidecars/
+· Web 端: 扩展进程 Wasm 模块部署到 CDN，按需下载
+
+design/language/01-lexical-grammar.md
+
+01 - SF 语言词法规则
+
+1. 概述
+
+SF 语言 (.sfl) 的词法规则定义代码的最小组成单元。
+
+2. Token 类型
+
+2.1 关键字
+
+```
+var, let, const, func, return, void,
+if, else, elif, repeat, forever, while,
+broadcast, and, wait, on,
+struct, enum, type, import, export
 ```
 
----
+2.2 标识符
 
-00-constants.md
+· 规则: [a-zA-Z_][a-zA-Z0-9_]*
+· 变量名、函数名、类型名均使用标识符
+· 区分大小写
 
-```markdown
-# 00 - 文档约定与常量索引
+2.3 字面量
 
-[返回 README](./README.md) | [下一章：项目概述](./01-overview.md)
+· 数字: [0-9]+(\.[0-9]+)?（整数和浮点数统一解析）
+· 字符串: "..." 双引号包裹，支持 \n、\t、\"、\\ 转义
+· 布尔: true、false
+· 空值: null
 
-## 术语约定
-- **必须 / MUST**：绝对要求
-- **不得 / MUST NOT**：绝对禁止
-- **应该 / SHOULD**：强烈推荐
-- **不应该 / SHOULD NOT**：不推荐
-- **可以 / MAY**：可选
+2.4 运算符
 
-## 魔法数字禁止
-代码中不得出现裸数字。所有数值必须定义为具名常量，此处为参考值。
+· 算术: +, -, *, /, %
+· 比较: ==, !=, >, <, >=, <=
+· 逻辑: and, or, not
+· 赋值: =, +=, -=, *=, /=
+· 成员访问: .
+· 箭头: ->
 
-## 常量索引
+2.5 注释
 
-### 编辑器交互
-| 常量名 | 值 | 单位 | 说明 |
-|--------|----|------|------|
-| MAGNETIC_SNAP_DISTANCE_PX | 8 | px | 积木磁吸距离 |
-| HISTORY_STACK_MAX_DEPTH | 200 | 条 | 撤销栈深度 |
-| TRAIL_FRAME_COUNT | 6 | 帧 | 拖尾帧数 |
-| TRAIL_MAX_ALPHA | 0.8 | — | 拖尾最大透明度 |
-| TRAIL_MIN_ALPHA | 0.1 | — | 拖尾最小透明度 |
-| BLOCK_NEST_INDENT_PX | 24 | px | 嵌套缩进 |
-| BLOCK_VERTICAL_GAP_PX | 4 | px | 垂直间距 |
+· 单行: # 到行末
+· 多行: ### 开始，### 结束（可嵌套）
 
-### 内存
-| 常量名 | 值 | 单位 | 说明 |
-|--------|----|------|------|
-| WASM_HEAP_BUDGET_DEFAULT_MB | 256 | MB | Wasm 堆预算 |
-| WASM_MEMORY_WARNING_THRESHOLD_MB | 1024 | MB | 内存警告阈值 |
-| AUDIO_STREAMING_MIN_DURATION_SEC | 5 | 秒 | 流式播放阈值 |
-| AUDIO_SHORT_CACHE_MAX_COUNT | 128 | 个 | 短音频缓存上限 |
-| TEXTURE_CACHE_MAX_COUNT | 256 | 个 | 纹理缓存上限 |
-| RESOURCE_IMPORT_WARNING_SIZE_MB | 10 | MB | 大文件警告阈值 |
-| JPEG_COMPRESSION_QUALITY | 85 | % | 压缩质量 |
+design/language/04-block-mapping.md
 
-### 舞台与渲染
-| 常量名 | 值 | 单位 | 说明 |
-|--------|----|------|------|
-| STAGE_MIN_WIDTH | 240 | px | 最小宽度 |
-| STAGE_MIN_HEIGHT | 180 | px | 最小高度 |
-| STAGE_DEFAULT_WIDTH | 480 | px | 默认宽度 |
-| STAGE_DEFAULT_HEIGHT | 360 | px | 默认高度 |
-| STAGE_MAX_WIDTH | 3840 | px | 最大宽度 (4K) |
-| STAGE_MAX_HEIGHT | 2160 | px | 最大高度 (4K) |
-| DPR_MIN | 1.0 | — | DPR 最小值 |
-| DPR_MAX | 4.0 | — | DPR 最大值 |
-| TARGET_FPS | 60 | fps | 目标帧率 |
-| FPS_FLUCTUATION_MAX | 5 | fps | 最大帧率波动 |
-| FPS_MIN_ACCEPTABLE | 55 | fps | 最低可接受帧率 |
+04 - 积木 ↔ .sfl 映射规则
 
-### 运行时
-| 常量名 | 值 | 单位 | 说明 |
-|--------|----|------|------|
-| CLONE_DEFAULT_MAX | 300 | 个 | 克隆体默认上限 |
-| COMPILE_TIME_TARGET_MS | 200 | ms | 1000 积木编译目标 |
-| MP4_DEFAULT_FPS | 30 | fps | MP4 默认帧率 |
-| MP4_HIGH_FPS | 60 | fps | MP4 高帧率 |
-| GIF_MAX_DURATION_SEC | 30 | 秒 | GIF 最大时长 |
-| GIF_DEFAULT_FPS | 15 | fps | GIF 默认帧率 |
+1. 概述
 
-### 协作
-| 常量名 | 值 | 单位 | 说明 |
-|--------|----|------|------|
-| COLLAB_MAX_PARTICIPANTS | 32 | 人 | 单房间最大人数 |
-| COLLAB_LATENCY_MAX_MS | 200 | ms | 最大协作延迟 |
-| OFFLINE_LOG_MAX_HOURS | 72 | 小时 | 离线日志保留时长 |
+定义 Scratch 积木与 .sfl 语法之间的双向转换规则，确保积木编辑器中的任何操作都能无损转换为 .sfl 代码，反之亦然。
 
-### 日志
-| 常量名 | 值 | 单位 | 说明 |
-|--------|----|------|------|
-| LOG_LEVEL_TRACE | 0 | — | 追踪 |
-| LOG_LEVEL_DEBUG | 1 | — | 调试 |
-| LOG_LEVEL_INFO | 2 | — | 信息 |
-| LOG_LEVEL_WARN | 3 | — | 警告 |
-| LOG_LEVEL_ERROR | 4 | — | 错误 |
-| LOG_LEVEL_FATAL | 5 | — | 致命 |
-| LOG_BUFFER_SIZE | 10000 | 条 | 缓冲区大小 |
-| LOG_CONSOLE_BUFFER_SIZE | 50000 | 条 | 控制台缓冲区 |
-| LOG_BUFFER_MEMORY_MAX_MB | 16 | MB | 日志最大内存 |
-| LOG_MAX_WRITES_PER_SEC_NORMAL | 100 | 条/秒 | 正常模式写入 |
-| LOG_MAX_WRITES_PER_SEC_DEBUG | 10000 | 条/秒 | 调试模式写入 |
+2. 转换规则表
+
+2.1 运动类
+
+· move (steps) steps → this.moveSteps(steps)
+· turn right (degrees) degrees → this.turnRight(degrees)
+· turn left (degrees) degrees → this.turnLeft(degrees)
+· go to x: (x) y: (y) → this.goToXY(x, y)
+· glide (secs) secs to x: (x) y: (y) → this.glide(secs, x, y)
+
+2.2 事件类
+
+· when green flag clicked → on "flag_clicked":
+· broadcast (message) → broadcast "message"
+· broadcast (message) and wait → broadcast "message" and wait
+· when I receive (message) → on "message":
+
+2.3 控制类
+
+· wait (seconds) seconds → await this.wait(seconds)
+· repeat (count) → repeat count:
+· forever → forever:
+· if (condition) then → if condition:
+· if (condition) then ... else → if condition: ... else:
+· wait until (condition) → while not condition:
+
+2.4 变量类
+
+· set [var] to (value) → var = value
+· change [var] by (delta) → var += delta
+· show variable [var] → this.showVariable("var")
+· hide variable [var] → this.hideVariable("var")
+
+2.5 列表类
+
+· add (item) to [list] → list.push(item)
+· delete (index) of [list] → list.deleteAt(index)
+· insert (item) at (index) of [list] → list.insertAt(index, item)
+· item (index) of [list] → list[index]
+
+2.6 自定义积木
+
+· define (name) (params...) → func name(params...):
+· (name) (args...) → name(args...)
+
+3. 命名转换规则
+
+· 积木中文标签 → 英文标识符（通过积木 ID 映射，保证跨语言一致）
+· 变量名保留原始名称，空格转为下划线
+· 列表名保留原始名称，后缀 _list
+· 广播消息名保留原始名称，空格转为下划线
+
+design/language/05-standard-library.md
+
+05 - SF 标准库
+
+1. 概述
+
+SF 语言内置标准库，提供常用函数和常量，无需安装扩展即可使用。标准库在编译时自动链接，不增加运行时开销。
+
+2. 数学函数 (math)
+
+· abs(x): 绝对值
+· sqrt(x): 平方根
+· sin(x), cos(x), tan(x): 三角函数（弧度制）
+· asin(x), acos(x), atan(x): 反三角函数
+· ln(x), log10(x), exp(x): 对数和指数
+· round(x), floor(x), ceil(x): 取整
+· random(min, max): 随机数 [min, max]
+· clamp(x, min, max): 钳制值到指定范围
+· lerp(a, b, t): 线性插值
+· PI, E: 数学常量
+
+3. 字符串函数 (string)
+
+· length(s): 字符串长度
+· substring(s, start, end): 子串
+· indexOf(s, target): 查找子串位置，未找到返回 -1
+· replace(s, old, new): 替换
+· toUpper(s), toLower(s): 大小写转换
+· trim(s): 去除首尾空格
+· split(s, delimiter): 分割为列表
+· join(list, delimiter): 列表合并为字符串
+
+4. 时间函数 (time)
+
+· now(): 返回当前时间戳 (毫秒，自 1970-01-01 UTC)
+· timer(): 返回项目运行时长 (秒，从绿旗点击或 resetTimer() 调用开始计时)
+· resetTimer(): 重置项目计时器
+· daysSince2000(): 返回自 2000-01-01 起的天数
+
+design/language/06-vscode-extension.md
+
+06 - VS Code 扩展设计
+
+1. 概述
+
+提供 .sfl 文件的语法高亮、智能补全、错误诊断和代码片段。
+
+2. 功能
+
+2.1 语法高亮
+
+· 基于 TextMate 语法定义，高亮关键字、字符串、数字、注释
+· 关键字用蓝色，字符串用橙色，数字用绿色，注释用灰色斜体
+
+2.2 智能补全
+
+· 基于 Language Server Protocol (LSP) 实现
+· 补全关键字、变量名、函数名、类型名
+· 输入 . 时补全结构体字段或方法
+· 输入 " 时补全已知广播消息名
+
+2.3 错误诊断
+
+· 编译时错误在编辑器中以红色波浪线标注
+· 悬停显示错误详情
+· 错误包括: 类型不匹配、未定义变量、语法错误
+
+2.4 代码片段
+
+· func → 生成函数模板
+· if → 生成 if 块模板
+· repeat → 生成 repeat 块模板
+· struct → 生成结构体模板
+
+3. 发布
+
+· 通过 VS Code Marketplace 发布，ID 为 sailfish-studio.sfl-language
+· 版本号跟随 Sailfish Studio 主版本
+
+design/extensions/01-extension-api.md
+
+01 - 扩展 API 参考
+
+1. 概述
+
+Sailfish Studio 扩展 API 允许开发者创建新的积木，扩展 SF 语言的功能。扩展可用 JavaScript、Rust 或 C++ 编写。
+
+2. JavaScript API
+
+```js
+class MyExtension {
+  static get info() {
+    return {
+      id: 'my-extension',
+      name: 'My Extension',
+      version: '1.0.0',
+      description: 'My custom blocks'
+    };
+  }
+
+  static getBlocks() {
+    return [
+      {
+        opcode: 'myBlock',
+        blockType: 'command',
+        text: 'do something with [PARAM]',
+        arguments: {
+          PARAM: { type: 'string', defaultValue: 'hello' }
+        }
+      }
+    ];
+  }
+
+  static execute(opcode, args, runtime) {
+    if (opcode === 'myBlock') {
+      console.log(args.PARAM);
+    }
+  }
+}
+
+Scratch.extensions.register(new MyExtension());
 ```
 
----
+3. Rust API
 
-01-overview.md
+Rust 扩展实现 SfExtension trait，编译为 Wasm 模块：
 
-```markdown
-# 01 - 项目概述
-
-[返回 README](./README.md) | [下一章：核心概念](./02-concepts.md)
-
-## 1.1 定位
-
-Sailfish Studio 是一个面向专业创作者的图形化编程与全栈开发平台。创作者用它做四件事：
-
-- **创作游戏和应用**：用积木拖拽编程，发布到 Web、桌面、移动端。
-- **开发服务器后端**：用 .sfl 纯文本语言写后端逻辑，通过 SF Runtime 部署。
-- **实时协作**：多人同时编辑同一个项目，像 Figma 一样。
-- **编译为原生程序**：将项目 AOT 编译为独立可执行文件，无运行时依赖。
-
-## 1.2 核心目标
-
-- **极致性能**：核心引擎 Rust 重写，编译为 WebAssembly。桌面端基于 Tauri。支持 AOT 编译。
-- **绝对稳定**：舞台和编辑器帧率波动在任何负载下 ≤ `FPS_FLUCTUATION_MAX` fps。重负载下不低于 `FPS_MIN_ACCEPTABLE` fps。多进程隔离确保一个项目崩溃不影响其他项目。
-- **专业品质**：严谨的类型系统对标 Rust，自研 UI 框架，自研纯文本语言 `.sfl`。
-- **原生协作**：内置多人实时协作，支持用户系统和链接分享。
-- **开放生态**：兼容 TurboWarp JS 扩展，支持 Rust/C++ 扩展，社区可贡献。
-
-## 1.3 Sailfish Studio 不做的事
-
-以下功能**明确不在需求范围内**：
-
-- **不做社交网络**：不内置动态流、关注系统、点赞、排行榜。
-- **不做模板市场**：不内置收费模板商店。
-- **不做 AI 生成内容审核**：AI 生成的 .sfl 代码由用户自行负责。
-- **不做内置直播推流**：舞台画面可以导出，但不内置推流功能。
-- **不做移动端手机 UI**：移动端仅适配平板。
-- **不做内置数据库服务**：云变量提供简单的键值共享。
-- **不做支付系统**：不内置任何支付、订阅、打赏功能。
-
-## 1.4 与上游的关系
-从 TurboWarp 分叉全部 44 个仓库，核心模块 Rust 重写，仅保留 JS 扩展兼容。
+```rust
+struct MyExtension;
+impl SfExtension for MyExtension {
+    fn info(&self) -> ExtensionInfo { ... }
+    fn blocks(&self) -> Vec<BlockDefinition> { ... }
+    fn execute(&self, opcode: &str, args: &[Value], state: &mut RuntimeState) -> Option<Value> { ... }
+}
 ```
 
----
+4. C/C++ API
 
-02-concepts.md
+C/C++ 扩展通过 Emscripten 编译为 Wasm，导出 C ABI 函数，由 Rust 侧通过 extern "C" 调用。
 
-```markdown
-# 02 - 核心概念
+design/extensions/02-extension-lifecycle.md
 
-[上一章](./01-overview.md) | [下一章：技术架构](./03-architecture.md)
+02 - 扩展生命周期
 
-## 2.1 积木
-主要的编程方式，操作与 Scratch 相同。底层引擎 Rust 自研，不依赖 Blockly。内置全部 Scratch 3.0 积木及 TurboWarp 增强。扩展可增加新积木。
+1. 生命周期阶段
 
-## 2.2 .sfl 纯文本语言
-从积木分叉出的纯文本形态。语法与积木一一对应。文件后缀 `.sfl`。可被 SF Runtime 执行，也可 AOT 编译。提供 VS Code 扩展。
+1.1 注册 (Registration)
 
-## 2.3 .sf 项目文件
-项目保存格式，SQLite 数据库。比 ZIP 紧凑，支持增量写入和实时保存。包含：元信息、校验码、积木树、资源 BLOB、项目设置、扩展列表与设置。
+· 扩展在编辑器启动或用户安装时注册
+· 注册时提供 extension.json 或通过 API 声明积木、设置项
+· 注册后积木出现在工具箱中
 
-## 2.4 SF 程序包
-.sfl 文件和资源打包的可执行单元，后缀 `.sfp`。非加密，可混淆保护。
+1.2 加载 (Loading)
 
-## 2.5 SF Runtime
-命令行工具，执行 .sfl 和 .sfp。核心命令：`sf run`、`sf pack`、`sf new`、`sf check`。有头/无头两种模式。
+· 扩展代码在第一次使用时按需加载（懒加载）
+· 加载时分配沙箱环境 (Web Worker 或独立进程)
+· 加载超时: 10 秒，超时后提示用户并禁用该扩展
 
-## 2.6 AOT 编译
-将项目编译为原生可执行文件，不含解释器。支持 XML 配置或命令行参数。
+1.3 执行 (Execution)
 
-## 2.7 扩展
-增强语言能力的模块。兼容 TurboWarp JS 扩展，支持 Rust/C++/TS。官方市场 + 社区渠道。
+· 积木触发时调用扩展的 execute 方法
+· 执行超时: 单次调用最长 5 秒，超时后终止并报错
+· 扩展可访问 RuntimeState 读写变量、列表、广播消息
 
-## 2.8 编辑器插件
-增强编辑器功能的模块，不增加积木。
+1.4 暂停 (Suspension)
+
+· 项目停止运行时，扩展进入暂停状态
+· 暂停时扩展不应执行任何后台操作
+· 恢复执行时通过 on_resume 回调通知扩展
+
+1.5 卸载 (Unloading)
+
+· 用户禁用或卸载扩展时触发
+· 扩展应清理资源 (定时器、网络连接、事件监听)
+· 扩展进程被终止，所有内存释放
+
+2. 状态图
+
+```
+[已安装] → (加载) → [已加载] → (执行) → [运行中]
+                 ↓                    ↓
+             [错误/超时]          [暂停/停止]
 ```
 
----
+design/extensions/03-plugin-api.md
 
-03-architecture.md
+03 - 插件 API 参考
 
-```markdown
-# 03 - 技术架构
+1. 概述
 
-[上一章](./02-concepts.md) | [下一章：积木编辑器](./04-editor.md)
+插件 API 允许开发者扩展编辑器的功能（不增加新积木），修改 UI、主题、快捷键等。插件需通过审核才能进入官方市场。
 
-## 3.1 全栈技术栈
-- 核心语言：Rust 1.95+，编译为 wasm32-unknown-unknown
-- 前端构建：Next.js 16.2 (Turbopack)
-- 桌面端：Tauri 2.0
-- 包管理：pnpm 10+
-- 数据库：SQLite
-- C/C++ 扩展：Emscripten 4.2
-- AOT 后端：LLVM 18+
+2. 插件能力
 
-## 3.2 多进程架构
+2.1 UI 扩展
 
-Sailfish Studio 采用三进程架构确保稳定性。
+· 添加自定义面板: sailfish.ui.registerPanel(panelConfig)
+· 修改工具栏: sailfish.ui.addToolbarButton(buttonConfig)
+· 注册右键菜单: sailfish.ui.registerContextMenu(menuConfig)
 
-| 进程 | 职责 | 生命周期 | 数量 |
-|------|------|---------|------|
-| 主进程 | 窗口管理、菜单、系统托盘、自动更新、IPC 中枢 | 启动到退出 | 1 |
-| 渲染进程 | 编辑器 UI（积木区、舞台、面板） | 启动到退出 | 1（常驻） |
-| 扩展进程 | 项目执行（VM、编译、扩展） | 按项目 | 每项目 1 个 |
+2.2 主题扩展
 
-**关键约束**：
-- 渲染进程只负责 UI，不执行项目逻辑。
-- 每个项目运行在独立扩展进程中，完全隔离。
-- 打开新项目不重新加载渲染进程。
-- 关闭项目则终止扩展进程，内存立即释放。
+· 注册新主题: sailfish.theme.register(themeConfig)
+· 主题可覆盖颜色、字体、圆角、阴影
 
-**浏览器端实现**：渲染进程 = 主线程，扩展进程 = Web Worker。  
-**桌面端实现**：渲染进程 = WebView，扩展进程 = Tauri sidecar 子进程（推荐）或 Web Worker（降级）。
+2.3 快捷键
 
-## 3.3 源代码质量要求
-- Rust：`cargo fmt`、`cargo clippy -D warnings`、零 `unsafe`（除非审查批准）、禁止 `unwrap()` 在生产代码中、测试覆盖率 ≥ 95%。
-- TS/JS：Biome 格式化和 lint、禁止 `any`（除非审查批准）、禁止魔法数字、测试覆盖率 ≥ 95%。
-- 代码审查：所有 PR 必须审查通过，CI 必须全绿。
+· 注册快捷键: sailfish.shortcuts.register(command, keybinding, callback)
+· 快捷键冲突时提示用户手动解决
 
-## 3.4 仓库组织（Monorepo，6 个主仓库）
-- **sf-core** (28 包)：VM、编译器、运行时、积木引擎、渲染器、解析器、存储、音频、.sfl 语言、Runtime、AOT 编译器、混淆、调试、类型定义
-- **sf-editor** (13 包)：UI 框架、编辑器主应用、多窗口管理、addons、插件引擎、插件市场、社区、平板 UI、调试控制台、本地化
-- **sf-tools** (8 包)：打包器、解包器、CLI、sb3fix、脚手架、后处理
-- **sf-services** (6 包)：云变量、账户、分享、统计、代理、轻量 API
-- **sf-extensions** (21+ 扩展 + 市场)：扩展内容、市场网站、开发工具库
-- **sf-docs**：文档站
+2.4 编辑器钩子
+
+· 项目打开/关闭: onProjectOpen(callback), onProjectClose(callback)
+· 保存前/后: onBeforeSave(callback), onAfterSave(callback)
+· 编译前/后: onBeforeCompile(callback), onAfterCompile(callback)
+
+3. 插件描述文件
+
+```json
+{
+  "id": "my-plugin",
+  "version": "1.0.0",
+  "name": "My Plugin",
+  "description": "Custom editor plugin",
+  "author": "username",
+  "permissions": ["ui", "theme", "shortcuts"],
+  "entry": "./index.js"
+}
 ```
 
----
+design/extensions/04-sandbox-model.md
 
-04-editor.md
+04 - 沙箱模型
 
-```markdown
-# 04 - 积木编辑器
+1. 概述
 
-[上一章](./03-architecture.md) | [下一章：多人协作](./05-collaboration.md)
+扩展和插件在沙箱环境中运行，限制其对系统资源的访问权限。沙箱分为 Web 端和桌面端两个实现。
 
-## 4.1 编辑器基础
-- 全新积木视觉，不模仿 Blockly。
-- 拖拽吸附（`MAGNETIC_SNAP_DISTANCE_PX` px）。
-- 动态模糊拖尾（`TRAIL_FRAME_COUNT` 帧，透明度 `TRAIL_MAX_ALPHA` → `TRAIL_MIN_ALPHA`）。
-- 撤销/重做（`HISTORY_STACK_MAX_DEPTH` 条）。
-- 右键菜单：复制、粘贴、删除、注释、折叠。
-- 工具箱：内置积木和扩展积木统一显示。
+2. 权限模型
 
-## 4.2 类型系统
-创建变量必须选类型，每种类型有专属图标和色差：
+扩展必须在 extension.json 或 plugin.json 中声明所需权限，用户安装时确认。
 
-| 类型 | 说明 |
-|------|------|
-| `any` | 通用类型，默认，橙色系 |
-| `string` | 纯字符串 |
-| `number` | 双精度浮点 |
-| `float` | 高精度浮点 |
-| `long` | 大整数 |
-| `bigint` | 无限大整数 |
-| `bool` | 布尔值 |
+2.1 权限列表
 
-公有/私有变量分组显示。导入外部项目时默认通用类型。
+· network: 允许发起 HTTP/WebSocket 请求（目标域名白名单在扩展描述中声明）
+· storage: 允许读写本地存储 (IndexedDB/LocalStorage)
+· filesystem: 允许读写本地文件系统 (仅桌面端，且限定在项目目录和用户数据目录)
+· audio: 允许播放音频
+· video: 允许播放视频
+· dom: 允许访问 DOM (仅插件，且仅限编辑器 UI 区域)
+· vm: 允许访问 sf-vm 内部状态 (仅高级扩展，需额外审核)
 
-## 4.3 高级语言特性
-泛型、可选类型、联合类型、类型别名、结构体、枚举、完整函数签名、模块与命名空间、错误处理、常量与不可变数据。
+3. 沙箱实现
 
-## 4.4 拖拽交互
-- 拖出：积木→.sfl、角色→.sprite、背景→.backdrop、造型→图片、声音→音频、项目卡片→.sf、舞台→截图。
-- 拖入：图片、音频、.sfl、.sb3/.sf、.sprite、.backdrop、扩展文件。
-- 文件暂存区：编辑器关闭前非空则提示保存。
-- 桌面端多窗口，Web 端标签页多开（不支持跨标签页拖拽）。
-- 平板：拖出改为屏幕边缘菜单。
+· Web 端: 扩展运行在独立 Web Worker 中，无 DOM 访问权限。网络请求通过 fetch 代理，由主线程控制。权限检查在主线程侧进行，Worker 侧无法绕过。
+· 桌面端: 扩展运行在独立子进程中，通过 IPC 通信。文件系统访问通过虚拟文件系统 (VFS) 代理，限制在声明的目录范围内。进程级隔离确保扩展崩溃不影响编辑器。
 
-## 4.5 协作模式下的编辑器行为
-- 其他用户编辑的积木显示其颜色边框。
-- 同一积木被两人同时拖拽时，先开始的生效。
+design/extensions/05-marketplace.md
+
+05 - 扩展与插件市场设计
+
+1. 概述
+
+扩展市场和插件市场是同一个平台的两个视图，用户可以在编辑器中或通过网站访问。
+
+2. 市场功能
+
+2.1 搜索与浏览
+
+· 关键词搜索（名称、描述、标签）
+· 按分类浏览（工具、3D、数据、系统、社区精选等）
+· 按筛选条件排序（下载量、评分、更新时间、名称）
+
+2.2 扩展/插件详情页
+
+· 图标、名称、作者、版本、下载量、评分
+· 描述、截图/演示视频
+· 提供的积木列表（扩展）或功能介绍（插件）
+· 权限声明
+· 更新日志
+
+2.3 安装
+
+· 一键安装到编辑器（通过 sailfish://install 协议或直接调用 API）
+· 安装后无需重启编辑器即可使用
+
+3. 审核流程
+
+· 提交: 开发者在市场网站提交扩展/插件，填写描述、上传代码
+· 自动检查: 静态扫描（XSS、权限声明一致性、代码签名完整性）
+· 人工审核: 功能测试、安全检查、UI 一致性检查
+· 审核结果: 通过（汇入官方市场）、修改后重审（附具体修改建议）、拒绝（附明确理由）
+· 更新时间: 审核周期目标 < 3 个工作日
+
+design/collaboration/03-presence.md
+
+03 - 用户存在感设计
+
+1. 概述
+
+用户存在感系统让协作用户在编辑器中可见，感知彼此的位置和操作。
+
+2. 光标显示
+
+· 每个协作用户的鼠标光标显示为带有其用户颜色的箭头，上方浮动用户名称标签
+· 用户名称标签背景为其颜色，文字为白色，字号 --text-xs，跟随光标移动
+· 光标位置每 100ms 向其他客户端广播一次（节流，避免高频消息）
+· 当光标在积木画布或舞台上时广播，在其他区域（菜单、对话框）时不广播
+
+3. 编辑状态显示
+
+· 某用户正在编辑的积木显示该用户颜色的 2px 边框，透明度 0.8
+· 某用户选中的角色在角色列表中高亮显示其颜色背景
+· 某用户正在编辑的造型在造型编辑器中显示锁定图标（锁 + 用户颜色 + 用户名 tooltip）
+· 某用户正在查看的脚本区域（积木画布滚动位置）不做强制同步
+
+4. 用户列表
+
+· 工具栏右侧显示当前协作会话的参与者头像（最多显示 6 个，超出显示 "+N"）
+· 点击头像或 "+N" 展开完整用户列表，包含:
+  · 用户名、头像、权限角色
+  · 当前状态（活跃/空闲/离线），空闲判定: 2 分钟无操作
+  · 正在编辑的文件/角色
+· 邀请新成员按钮在列表顶部
+
+5. 加入/离开通知
+
+· 用户加入/离开时，左下角弹出 Toast 通知
+· 通知内容: "[用户名] 加入了协作" / "[用户名] 离开了协作"
+· 持续时间: 3 秒
+· 最多同时显示 3 条通知，超出排队
+
+design/collaboration/04-conflict-resolution.md
+
+04 - 冲突解决算法
+
+1. 概述
+
+多人同时编辑时，冲突解决算法确保数据一致性。Sailfish Studio 针对不同数据类型采用不同的解决策略。
+
+2. 积木树: OT 算法
+
+积木树的操作 (插入、删除、移动、修改参数) 通过 OT 变换函数保证并发操作可交换。
+
+2.1 变换规则
+
+· 两个 block_insert 在不同位置 → 都生效
+· 两个 block_insert 在相同位置 → 后到达的偏移 +1
+· block_insert + block_delete (不同积木) → 都生效
+· block_delete + block_update_field (同一积木) → block_update_field 被丢弃 (积木已删除)
+· 两个 block_move (同一积木) → 最后到达的生效
+
+3. 变量: LWW + 操作变换
+
+· 变量修改采用 Last-Writer-Wins (LWW)，以服务器时间戳为准
+· 如果两个用户在离线期间修改了同一变量，恢复连接后以最后修改为准
+· 增量修改 (change variable by N) 转换为绝对值后应用 LWW
+
+4. 造型编辑: 锁定机制
+
+· 同一时间只能有一个用户编辑造型，进入造型编辑器时锁定
+· 锁定期间其他用户看到只读视图和锁定提示
+· 用户离开造型编辑器时自动解锁
+· 锁定超时: 5 分钟无操作自动解锁（防止用户忘记关闭而长期锁定）
+
+5. 角色属性: LWW
+
+· 角色位置、大小、方向等属性使用 LWW
+· 两个用户同时移动同一角色，最后一次操作生效
+
+design/collaboration/05-offline-sync.md
+
+05 - 离线同步设计
+
+1. 概述
+
+用户在离线状态下可以继续编辑项目，恢复连接后自动同步。
+
+2. 离线操作记录
+
+· 离线期间的所有操作记录在本地 IndexedDB 操作日志中
+· 操作日志格式: 时间戳 + 操作类型 + 操作数据 (JSON)
+· 日志保留 OFFLINE_LOG_MAX_HOURS 小时，超出后若仍离线则清除
+
+3. 恢复连接同步流程
+
+1. 检测网络恢复 → 连接协作服务器
+2. 发送本地操作日志 (批量，按时间戳排序)
+3. 服务器应用操作，检测冲突
+4. 若无冲突 → 同步完成
+5. 若有冲突 → 服务器返回冲突列表，客户端展示冲突解决对话框（展示本地版本和远程版本，用户逐项选择保留哪个）
+6. 用户手动解决冲突后，服务器广播最终状态
+
+4. 冲突解决 UI
+
+· 冲突解决对话框分左右两栏：左侧显示本地版本（带 "本地" 标签），右侧显示远程版本（带 "远程" 标签）
+· 差异部分高亮（背景色 --color-warning-light，即 #FEF3C7）
+· 用户可以选择保留本地、保留远程、或手动合并
+· 支持 "全部保留本地" 和 "全部保留远程" 批量操作
+
+5. 同步状态指示器
+
+· 状态栏右侧显示同步状态:
+  · 已同步: 绿色圆点 + "已同步"
+  · 同步中: 蓝色旋转图标 + "同步中..."
+  · 离线: 灰色圆点 + "离线 (上次同步: HH:MM)"
+  · 冲突待解决: 橙色圆点 + "有冲突待解决"
+
+design/security/01-threat-model.md
+
+01 - 威胁模型
+
+1. 概述
+
+Sailfish Studio 的威胁模型定义潜在攻击者、攻击向量和防护措施。
+
+2. 信任边界
+
+· 编辑器内部: 核心代码可信
+· 扩展进程: 不可信 (来自第三方)
+· 网络: 不可信 (数据传输)
+· 本地文件系统: 部分可信 (用户文件)
+
+3. 威胁清单
+
+3.1 扩展威胁
+
+· 恶意扩展窃取用户数据: 扩展声明 storage 权限后读取其他扩展的数据。防护: 存储隔离，每个扩展有独立的存储命名空间。
+· 扩展注入 XSS: 扩展返回未转义的用户内容。防护: 扩展 API 自动转义输出，审核时静态扫描。
+· 扩展耗尽资源: 无限循环、大量内存分配。防护: 执行超时 (5 秒)、内存限制 (128MB/扩展进程)、CPU 使用率监控。
+· 扩展访问未授权网络: 扩展声明 network 权限但访问未声明域名。防护: 网络请求白名单检查在渲染进程侧强制实施。
+
+3.2 协作威胁
+
+· 未授权加入协作: 通过猜测链接加入。防护: 分享链接支持密码保护、有效期限制。
+· 权限提升: 普通编辑者尝试执行所有者操作。防护: 服务器端权限校验，每次操作前检查权限。
+· 消息篡改: 中间人攻击修改协作消息。防护: WebSocket 使用 WSS (TLS 加密)，消息带 HMAC 签名。
+
+3.3 文件系统威胁
+
+· 路径遍历: 扩展通过 ../ 访问项目目录外的文件。防护: 文件系统 VFS 做路径规范化，拒绝 .. 超出允许范围的请求。
+· 恶意 .sf 文件: 打开包含恶意数据的 .sf 文件导致缓冲区溢出。防护: 所有输入验证，SQLite 查询使用参数化，资源 BLOB 大小限制 (100MB/文件)。
+
+design/security/02-sandbox-boundaries.md
+
+02 - 沙箱边界
+
+1. 概述
+
+Sailfish Studio 的沙箱边界定义扩展/插件与系统资源的隔离方式。
+
+2. 边界定义
+
+2.1 DOM 隔离
+
+· 扩展无权访问 DOM，所有 UI 操作通过 API 代理。尝试直接访问 document 或 window 时返回 undefined。
+· 插件可访问编辑器 UI 的指定区域 (sf-editor 的 <div id="plugin-panel">)，但不能访问其他区域 (菜单、工具栏、舞台)。
+
+2.2 存储隔离
+
+· 每个扩展拥有独立的 IndexedDB/LocalStorage 命名空间，键名自动添加扩展 ID 前缀
+· 跨扩展数据共享必须通过 sailfish.storage.share(key, value, targetExtensionId) API
+
+2.3 网络隔离
+
+· 扩展的网络请求通过编辑器主线程的代理执行，不在扩展进程中直接发起
+· 代理检查请求 URL 是否在扩展声明的域名白名单中，拒绝非白名单请求
+· 请求速率限制: 60 次/分钟，超出后返回 429
+
+2.4 进程隔离 (桌面端)
+
+· 每个扩展在独立子进程中运行，通过 IPC 通信。扩展进程崩溃不影响编辑器和其他扩展。
+· 子进程使用操作系统级沙箱 (macOS App Sandbox、Windows Job Objects)，限制文件系统和网络访问。
+· 扩展进程内存限制 128MB，超出时进程被终止并提示用户。
+
+design/security/03-permission-model.md
+
+03 - 权限模型
+
+1. 概述
+
+扩展和插件必须声明所需权限，用户安装时确认。权限不可在运行时动态请求。
+
+2. 权限声明 (extension.json / plugin.json)
+
+```json
+{
+  "permissions": [
+    "network:api.example.com",
+    "storage",
+    "audio"
+  ]
+}
 ```
 
----
+3. 权限列表
 
-05-collaboration.md
+· network / network:<domain>: 网络请求，可限制域名
+· storage: 本地存储读写
+· filesystem: 文件系统访问 (仅桌面端，限制在项目目录和用户数据目录)
+· audio: 音频播放和控制
+· video: 视频播放和控制
+· dom: DOM 访问 (仅插件，限制在指定 UI 区域)
+· vm: sf-vm 内部状态访问 (需额外审核，仅限官方认证扩展)
 
-```markdown
-# 05 - 多人实时协作
+4. 权限确认 UI
 
-[上一章](./04-editor.md) | [下一章：UI 与设计语言](./06-ui.md)
+· 安装扩展/插件时弹出权限确认对话框，列出所有权限及说明
+· 用户必须逐项勾选同意，不能批量同意
+· 权限不可在运行时动态请求
 
-## 5.1 协作模式
-参考 Figma：实时同步、用户光标可见、不同颜色标记、积木编辑状态可见。支持跟随模式。支持评论与 @提及。
+design/security/04-csp-policy.md
 
-## 5.2 连接方式
-- 用户系统邀请（输入用户名或邮箱）
-- 分享链接（可设权限和有效期）
-- 局域网发现（桌面端，直连低延迟）
+04 - CSP 策略
 
-## 5.3 权限模型
+1. 概述
 
-| 角色 | 编辑积木 | 修改角色 | 增删角色 | 导出 | 邀请 | 踢人 |
-|------|---------|---------|---------|------|------|------|
-| 所有者 | 是 | 是 | 是 | 是 | 是 | 是 |
-| 编辑者 | 是 | 是 | 是 | 是 | 否 | 否 |
-| 评论者 | 否 | 否 | 否 | 否 | 否 | 否 |
-| 查看者 | 否 | 否 | 否 | 否 | 否 | 否 |
+Content Security Policy (CSP) 限制浏览器中可执行的脚本和可加载的资源。
 
-## 5.4 冲突解决
-积木树采用 OT/CRDT。变量以最后写入为准。造型编辑期间锁定。角色属性最后写入生效。
+2. Web 端 CSP 头
 
-## 5.5 离线编辑
-离线操作记录在本地日志中，恢复连接后同步。同步状态指示器在状态栏显示。离线日志保留 `OFFLINE_LOG_MAX_HOURS` 小时。
-
-## 5.6 用户系统
-邮箱注册、OAuth 登录。用户资料、好友、团队。通知中心（站内和邮件可选）。
-
-## 5.7 协作中的扩展行为
-扩展必须被所有参与者安装。本地存储、文件操作等扩展不进行同步。
-
-## 5.8 性能要求
-- 协作延迟 < `COLLAB_LATENCY_MAX_MS` ms
-- 协作不影响编辑器帧率
-- 单房间最多 `COLLAB_MAX_PARTICIPANTS` 人
-- 服务器单节点支持 1000 并发房间
+```
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self' 'wasm-unsafe-eval';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob:;
+  connect-src 'self' https://api.sailfish.studio wss://collab.sailfish.studio;
+  worker-src 'self' blob:;
+  font-src 'self';
 ```
 
----
+3. 沙箱 iframe (社区渠道扩展)
 
-06-ui.md
-
-```markdown
-# 06 - UI 与设计语言
-
-[上一章](./05-collaboration.md) | [下一章：扩展与插件](./07-extensions.md)
-
-## 6.1 设计风格
-参考 Figma 简洁现代风格。默认蓝色（#2563EB）唯一强调色。深色模式背景 #121212。插件可扩展主题。
-
-## 6.2 编辑器布局
-- 标题栏（macOS 保留红绿灯）
-- 菜单栏：文件/编辑/查看/项目/工具/扩展/帮助
-- 工具栏：绿旗、停止、全屏、加速模式、撤销/重做、分享按钮
-- 左侧工具箱 + 中间编辑区 + 右侧舞台和面板
-- 协作参与者列表（工具栏右侧）
-- 评论面板（可折叠侧边栏）
-- 文件暂存区面板
-- 状态栏：性能仪表盘、同步状态指示器
-
-## 6.3 用户存在感 UI
-协作用户光标彩色标记 + 名称。编辑中的积木显示用户颜色边框。加入/离开 Toast 通知。
-
-## 6.4 多语言
-50 种语言，AI 辅助翻译。RTL 布局支持。
-
-## 6.5 可访问性
-全键盘操作，WCAG 2.1 AA 标准。
+```
+Content-Security-Policy:
+  default-src 'none';
+  script-src 'self';
+  connect-src 'none';
 ```
 
----
+4. 桌面端
 
-07-extensions.md
+· 桌面端不使用 CSP 头，但通过操作系统级沙箱实现等效限制
 
-```markdown
-# 07 - 扩展与插件
+design/security/05-code-signing.md
 
-[上一章](./06-ui.md) | [下一章：运行时与打包](./08-runtime.md)
+05 - 代码签名
 
-## 7.1 扩展系统
-增强语言能力。兼容 TurboWarp JS 扩展。支持 Rust/C++/TS。官方市场（已审核）+ 社区渠道（未审核）。首批 21 个高级扩展（详见附录）。
+1. 概述
 
-## 7.2 编辑器插件
-增强编辑器功能。可改 UI、主题、快捷键等。与扩展共用市场。
-```
+代码签名确保扩展、插件和桌面应用的来源可验证，未被篡改。
 
----
+2. 扩展/插件签名
 
-08-runtime.md
+· 提交到官方市场的扩展/插件由 Sailfish Studio 官方签名
+· 签名密钥存储在 CI/CD Secrets 中，仅构建流程可访问
+· 编辑器加载扩展时验证签名，签名无效或缺失时拒绝加载
 
-```markdown
-# 08 - 运行时与打包
+3. 桌面应用签名
 
-[上一章](./07-extensions.md) | [下一章：跨平台](./09-platform.md)
+· macOS: Developer ID 证书 + 公证
+· Windows: EV Code Signing Certificate
+· Linux: GPG 签名
 
-## 8.1 SF Runtime
-命令行工具。`sf run` 执行 .sfl 或 .sfp。有头模式（图形）和无头模式（服务器后端）。打包可选内嵌或依赖外部 Runtime。
+4. 构建来源证明 (SLSA Level 2+)
 
-## 8.2 AOT 编译
-XML 配置或命令行参数。编译流程：解析→优化→LLVM 生成机器码→链接启动代码→输出原生可执行文件。
+· GitHub Actions 生成构建来源证明 (actions/attest-build-provenance)
+· 用户可验证发布包是否由官方 CI 构建，未被篡改
+· 构建配置和依赖锁定文件在 Git 中可审计
 
-## 8.3 混淆
-`sf-obfuscator` 保护商业代码。不可逆。
-```
+design/testing/02-performance-bench.md
 
----
+02 - 性能基准
 
-09-platform.md
+1. 概述
 
-```markdown
-# 09 - 跨平台
+定义 Sailfish Studio 必须满足的性能基准。
 
-[上一章](./08-runtime.md) | [下一章：调试与日志](./10-debug.md)
+2. 编译器基准
 
-## 9.1 桌面端
-Tauri 2.0，无边框窗口。macOS 保留红绿灯，Windows/Linux 自绘按钮。自动更新、原生文件对话框、SQLite 本地存储。多窗口模式。
+· 1000 积木项目编译时间 < 200ms
+· 增量编译 (修改 1 个积木) < 20ms
+· 测试项目: 标准测试集 bench/1000-blocks.sf
 
-## 9.2 安卓平板
-独立平板 UI，双手多点触控。拖拽适配：拖出改为屏幕边缘菜单。
+3. 渲染器基准
 
-## 9.3 Web 端
-浏览器直接访问，无需安装。标签页多开。
-```
+· 1000 个角色同时移动: ≥ 60fps
+· 10000 个克隆体: ≥ 30fps
+· 舞台缩放 (25% → 400%): 缩放过程中 ≥ 55fps
+· 测试设备: 中等配置 (Intel i5 / 8GB RAM / 集成显卡)
 
----
+4. 编辑器基准
 
-10-debug.md
+· 积木拖拽帧率波动 ≤ 3fps
+· 工具箱搜索过滤延迟 < 100ms
+· 项目打开时间 (1000 积木) < 1 秒
 
-```markdown
-# 10 - 调试与日志
+5. 协作基准
 
-[上一章](./09-platform.md) | [下一章：非功能性需求](./11-nfr.md)
+· 操作延迟 < 200ms (正常网络)
+· 32 人同时编辑帧率影响 < 5fps
 
-## 10.1 日志分级
-6 级：TRACE、DEBUG、INFO、WARN、ERROR、FATAL。正常模式仅记录 WARN 及以上。
+6. 测试工具
 
-## 10.2 多进程收集
-渲染进程汇总所有扩展进程的日志。每条日志标注 `process_id`。
+· Rust: criterion + cargo bench
+· Web: Lighthouse CI + Playwright 性能录制
 
-## 10.3 调试控制台
-Ctrl+Shift+D 打开。过滤、搜索、导出日志。性能快照。调用栈查看。进程状态。
+design/testing/03-compatibility-matrix.md
 
-## 10.4 性能保障
-正常模式 < 0.5 FPS 影响。调试模式 < 3 FPS。环形缓冲区，超出丢弃低优先级。
-```
+03 - 兼容性矩阵
 
----
+1. 浏览器兼容性
 
-11-nfr.md
+浏览器 最低版本 说明
+Chrome 90+ 完整支持
+Firefox 90+ 完整支持
+Safari 15+ WebGL2 部分特性降级
+Edge 90+ 等同于 Chrome
 
-```markdown
-# 11 - 非功能性需求
+2. 操作系统兼容性
 
-[上一章](./10-debug.md) | [下一章：路线图](./12-roadmap.md)
+系统 最低版本 说明
+Windows 10 (21H2+) 桌面端 + Web 端
+macOS 11 (Big Sur+) 桌面端 (Apple Silicon 原生) + Web 端
+Linux Ubuntu 20.04+ 桌面端 + Web 端
+Android 10+ 平板端 (Chrome 或 WebView)
 
-## 11.1 性能
-- 1000 积木编译 < `COMPILE_TIME_TARGET_MS`
-- 重负载帧率 ≥ `FPS_MIN_ACCEPTABLE` fps，波动 ≤ `FPS_FLUCTUATION_MAX` fps
-- 编辑拖拽波动 ≤ 3 fps
-- IPC 延迟：桌面 < 1ms，浏览器 < 2ms
-- 空项目 Wasm 内存 < `WASM_HEAP_BUDGET_DEFAULT_MB / 4`
-- 大型项目 Wasm 内存 < `WASM_HEAP_BUDGET_DEFAULT_MB`
+3. CI 测试矩阵 (GitHub Actions)
 
-## 11.2 安全
-扩展审核、沙箱隔离、进程隔离、CSP、代码签名。
+· OS: ubuntu-latest, macos-latest, windows-latest
+· Rust: stable, beta
+· Node: 24 LTS
+· Browser: Chromium, Firefox, WebKit (Playwright)
 
-## 11.3 兼容性
-Chrome 90+、Firefox 90+、Safari 15+。Windows 10+、macOS 11+、Linux。Android 10+。
+design/testing/04-fuzzing-strategy.md
 
-## 11.4 可维护性
-测试覆盖率 ≥ 95%。所有模块文档化。禁止魔法数字。
+04 - 模糊测试策略
 
-## 11.5 国际化
-50 种语言。AI 翻译。日志始终英文。
-```
+1. 概述
 
----
+对核心模块进行模糊测试，发现边界情况和安全漏洞。
 
-12-roadmap.md
+2. 测试目标
 
-```markdown
-# 12 - 路线图
+· 项目加载器 (sf-parser): 随机字节输入，验证不会 panic，错误处理正确
+· 编译器 (sf-vm-compiler): 随机 AST 输入，验证生成的 JS 代码合法
+· 协作协议 (collaboration): 随机操作序列，验证 OT 变换结果一致
 
-[上一章](./11-nfr.md) | [下一章：附录](./13-appendices.md)
+3. 工具
 
-1. **Phase 1**：组织搭建，核心引擎 Rust 重写，多进程原型。
-2. **Phase 2**：UI 框架，编辑器完成，.sf 保存格式，调试系统。
-3. **Phase 3**：.sfl 语言，扩展/插件市场，协作系统。
-4. **Phase 4**：桌面端和移动端，AOT 编译，SF Runtime。
-5. **Phase 5**：社区功能，文档，发布 v1.0-Beta。
-```
+· Rust: cargo-fuzz (libFuzzer)
+· 持续运行时间: 每次 PR ≥ 1 小时，发布前 ≥ 24 小时
 
----
+4. CI 集成
 
-13-appendices.md
+· 每次 push 到 main 时运行模糊测试 1 小时
+· 发布候选版本时运行模糊测试 24 小时，无崩溃方可发布
+· 发现崩溃时自动生成最小复现用例并归档
 
-```markdown
-# 13 - 附录
+文档结束
 
-[上一章](./12-roadmap.md) | [返回 README](./README.md)
-
-## 术语表
-| 术语 | 描述 |
-|------|------|
-| .sf | Sailfish 项目文件，SQLite 格式 |
-| .sfl | Sailfish 纯文本语言 |
-| .sfp | SF 程序包 |
-| .sprite | 角色数据文件 |
-| .backdrop | 背景数据文件 |
-| SF Runtime | 独立命令行运行时 |
-| AOT 编译 | 预先编译为原生机器码 |
-
-## 支持语言 (50种)
-zh-CN, zh-TW, en, ja, ko, fr, de, es, pt-BR, pt, it, ru, ar, hi, bn, id, ms, th, vi, tr, nl, pl, uk, cs, sv, da, fi, nb, hu, ro, el, he, fa, ur, ta, te, mr, gu, kn, ml, pa, sw, fil, sr, hr, sk, bg, lt, lv, et, sl, is, ca, eu, gl, cy, eo
-
-## 仓库总览
-| 仓库 | 包数 | 说明 |
-|------|-----|------|
-| sf-core | 28 | 核心引擎 |
-| sf-editor | 13 | 编辑器 |
-| sf-tools | 8 | 工具 |
-| sf-services | 6 | 云端 |
-| sf-extensions | 21+ | 扩展 |
-| sf-docs | — | 文档 |
-
-## 首批高级扩展 (21个)
-舞台分辨率与 DPR、Pen Plus、HTML 编码、文本工具、克隆增强、事件增强、外观增强、大整数运算、位运算、进制转换、手柄、iframe 嵌入、视频链接、音频链接、Fetch、Files、本地存储、Three.js 3D、Babylon.js 3D、JSON 数据、XML 数据
-```
-
----
-
-14-changelog.md
-
-```markdown
-# 14 - 变更历史
-
-| 版本 | 日期 | 变更内容 |
-|------|------|----------|
-| 1.0-Beta.1 | 2026-06-07 | 初始版本，明确项目边界，建立多文档体系，独立协作章节 |
-
----
-
-**文档结束。**
+以上为 Sailfish Studio 设计文档体系的全部内容，至此 docs/design/ 目录下的所有文件均已完整交付。后续可依据这些设计文档进入开发实施阶段。
