@@ -89,42 +89,43 @@ cargo install tauri-cli
 
 ### 2.1 创建 GitHub 组织
 
-1. 访问 github.com，创建组织 Sailfish-Studio
-2. 上传头像，填写描述
-3. 开启双因素认证强制要求
-4. 设置基础成员权限为 Read
-5. 添加分支保护规则（main 分支要求 PR + 审查 + CI 通过）
+1. ✅ 访问 github.com，创建组织 Sailfish-Studio
+2. ✅ 上传头像，填写描述
+3. ⚠️ 开启双因素认证强制要求（需在 GitHub Web 界面手动开启，Free 计划组织 API 不支持）
+4. ✅ 设置基础成员权限为 Read
+5. ✅ 添加分支保护规则（main 分支要求 PR + 审查 + CI 通过）
 
-### 2.2 Fork 上游仓库
+### 2.2 Fork 上游仓库 ✅
 
-| 上游仓库 | SF 仓库 |
-|----------|---------|
-| TurboWarp/scratch-vm | sf-vm |
-| TurboWarp/scratch-blocks | sf-blocks |
-| TurboWarp/scratch-render | sf-renderer |
-| TurboWarp/scratch-gui | sf-editor |
-| TurboWarp/extensions | sf-extensions |
-| TurboWarp/packager | sf-packager |
-| TurboWarp/desktop | sf-desktop |
-| TurboWarp/scratch-parser | sf-parser |
-| TurboWarp/scratch-storage | sf-storage |
-| TurboWarp/scratch-audio | sf-audio |
-| TurboWarp/scratch-paint | sf-paint |
-| TurboWarp/scratch-l10n | sf-l10n |
-| TurboWarp/cloud-server | sf-cloud-server |
+| 上游仓库 | SF 仓库 | 状态 |
+|----------|---------|------|
+| TurboWarp/scratch-vm | sf-vm | ✅ |
+| TurboWarp/scratch-blocks | sf-blocks | ✅ |
+| TurboWarp/scratch-render | sf-renderer | ✅ |
+| TurboWarp/scratch-gui | sf-editor | ✅ |
+| TurboWarp/extensions | sf-extensions | ✅ |
+| TurboWarp/packager | sf-packager | ✅ |
+| TurboWarp/desktop | sf-desktop | ✅ |
+| TurboWarp/scratch-parser | sf-parser | ✅ |
+| TurboWarp/scratch-storage | sf-storage | ✅ |
+| TurboWarp/scratch-audio | sf-audio | ✅ |
+| TurboWarp/scratch-paint | sf-paint | ✅ |
+| TurboWarp/scratch-l10n | sf-l10n | ✅ |
+| TurboWarp/cloud-server | sf-cloud-server | ✅ |
 
-### 2.3 新建仓库
+### 2.3 新建仓库 ✅
 
 ```bash
-# 创建 Monorepo 核心仓库
-git init sf-core
-git init sf-tools
-git init sf-services
-git init sf-docs
-git init sf-runtime
+# 创建 Monorepo 核心仓库 (均已创建并推送到 GitHub)
+git init sf-core       # ✅ 含完整 Cargo workspace + 6 crates
+git init sf-tools      # ✅ 含 CLI 脚手架
+git init sf-services   # ✅ 含 Cloudflare Workers + Hono 框架
+git init sf-docs       # ✅ 含 VitePress 文档站
+git init sf-runtime    # ✅ 含 sf CLI 命令行运行时
+git init sf-aot-compiler  # ✅ AOT 编译器仓库（架构文档新增）
 ```
 
-### 2.4 配置 Monorepo 根
+### 2.4 配置 Monorepo 根 ✅
 
 在 sf-core/ 根目录创建 `Cargo.toml`:
 
@@ -147,7 +148,10 @@ resolver = "3"  # Cargo 2024 edition 使用 resolver 3
 [toolchain]
 channel = "stable"
 targets = ["wasm32-unknown-unknown"]
+components = ["rustfmt", "clippy"]
 ```
+
+> ✅ 已完成：还额外创建了 workspace.dependencies 统一依赖版本、.editorconfig、.github/CODEOWNERS、CI/CD GitHub Actions 流水线（check/fmt/clippy/test/wasm-build/security audit）、release.yml、dependabot.yml、所有仓库的分支保护规则。
 
 ---
 
