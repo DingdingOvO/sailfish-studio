@@ -1,273 +1,952 @@
-# 09 - 实际开发清单
+# 09 - 实际开发文档
 
 文档版本：1.0-Beta.1
 对应需求：docs/requirements/
 对应设计：docs/design/
-状态：施工中
+目标读者：开发者
 
 ---
 
-## 清单结构
+## 目录
 
-```
-docs/development/
-├── 09-implementation-checklist.md    # 本文件：总览与阶段说明
-├── 09a-phase1-infrastructure.md      # Phase 1：组织与基础设施
-├── 09b-phase2-core-engine.md         # Phase 2：核心引擎 Rust 重写
-├── 09c-phase3-editor-ui.md           # Phase 3：编辑器 UI 框架
-├── 09d-phase4-collaboration.md       # Phase 4：多人协作系统
-├── 09e-phase5-runtime-packager.md    # Phase 5：运行时与打包器
-├── 09f-phase6-desktop-mobile.md      # Phase 6：桌面端与移动端
-├── 09g-phase7-extensions-market.md   # Phase 7：扩展市场与生态
-├── 09h-phase8-testing-publish.md     # Phase 8：测试、文档与发布
-```
-
----
-
-## 总览
-
-Sailfish Studio 开发工作分为 8 个阶段，按依赖关系顺序推进。本清单基于从 TurboWarp JS 架构到 Rust 独立平台的完整迁移蓝图。
-
-| 阶段 | 名称 | 预计周期 | 关键产出 |
-|------|------|----------|----------|
-| Phase 1 | 组织与基础设施 | 2 周 | GitHub 组织、仓库、CI/CD |
-| Phase 2 | 核心引擎 | 12 周 | sf-vm、sf-blocks、sf-renderer、sf-parser |
-| Phase 3 | 编辑器 UI | 10 周 | sf-editor、sf-ui 框架 |
-| Phase 4 | 多人协作 | 8 周 | 协作服务器、OT 协议、用户系统 |
-| Phase 5 | 运行时与打包器 | 6 周 | SF Runtime、sf-packager、AOT 编译器 |
-| Phase 6 | 桌面端与移动端 | 6 周 | Tauri 桌面端、Android 平板端 |
-| Phase 7 | 扩展市场与生态 | 4 周 | sf-extensions 市场、高级扩展 |
-| Phase 8 | 测试、文档与发布 | 4 周 | 全量测试、用户文档、v1.0-Beta |
+1. 环境准备
+2. Phase 1: 组织与仓库搭建
+3. Phase 2: 核心引擎 Rust 重写
+   - 3.1 sf-vm 数据模型与解析
+   - 3.2 sf-vm 编译器
+   - 3.3 sf-vm 执行器
+   - 3.4 sf-vm 扩展系统
+   - 3.5 sf-vm 设置引擎
+   - 3.6 sf-vm WASM 导出
+   - 3.7 sf-blocks 积木编辑器
+   - 3.8 sf-renderer 舞台渲染器
+   - 3.9 sf-parser 解析器
+4. Phase 3: 编辑器 UI 框架
+5. Phase 4: 多人协作系统
+6. Phase 5: 运行时与打包器
+7. Phase 6: 桌面端与移动端
+8. Phase 7: 扩展市场与生态
+9. Phase 8: 测试与发布
 
 ---
 
-## 阶段依赖关系
+## 1. 环境准备
 
-```
-Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4
-                │            │
-                └──→ Phase 5 ──→ Phase 6
-                                    │
-Phase 7 ────────────────────────────┤
-                                    │
-Phase 8 ────────────────────────────┘
+### 1.1 系统要求
+
+- macOS 12+ / Windows 10+ / Ubuntu 20.04+
+- 内存：16GB+
+- 磁盘：50GB+ 可用空间
+
+### 1.2 安装 Rust
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup default stable
+rustup target add wasm32-unknown-unknown
 ```
 
-- Phase 2 和 Phase 3 是核心路径，必须顺序执行
-- Phase 5 依赖 Phase 2，可与 Phase 3 部分并行
-- Phase 6 依赖 Phase 3 和 Phase 5
-- Phase 7 可与 Phase 4-6 并行
-- Phase 8 在所有模块完成后执行
+### 1.3 安装 Node.js 与 pnpm
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+nvm install 24
+nvm use 24
+corepack enable pnpm
+```
+
+### 1.4 安装 Rust 工具链
+
+```bash
+cargo install wasm-pack cargo-nextest cargo-audit cargo-tarpaulin cargo-fuzz wasm-bindgen-cli
+```
+
+### 1.5 安装前端工具
+
+```bash
+pnpm add -g @biomejs/biome @playwright/test
+```
+
+### 1.6 安装 Emscripten（C/C++ 扩展编译）
+
+```bash
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk && ./emsdk install 4.2 && ./emsdk activate 4.2
+source ./emsdk_env.sh
+```
+
+### 1.7 安装 Tauri CLI
+
+```bash
+cargo install tauri-cli
+```
 
 ---
 
-## 子清单导航
+## 2. Phase 1: 组织与仓库搭建
 
-| 子清单 | 内容 | 步骤数 |
-|--------|------|--------|
-| 09a-phase1-infrastructure.md | 组织创建、仓库分叉、CI/CD 配置、域名与邮箱 | ~50 |
-| 09b-phase2-core-engine.md | sf-vm 数据模型、编译器、执行器、sf-blocks 积木引擎、sf-renderer 渲染器 | ~150 |
-| 09c-phase3-editor-ui.md | sf-ui 框架、编辑器布局、设计语言、多语言、可访问性 | ~100 |
-| 09d-phase4-collaboration.md | 协作协议、房间服务器、用户系统、离线同步 | ~80 |
-| 09e-phase5-runtime-packager.md | SF Runtime CLI、AOT 编译器、sf-packager 多格式导出 | ~60 |
-| 09f-phase6-desktop-mobile.md | Tauri 集成、原生窗口、平板 UI 适配 | ~50 |
-| 09g-phase7-extensions-market.md | 扩展市场网站、首批高级扩展开发 | ~40 |
-| 09h-phase8-testing-publish.md | 全量测试、文档站、发布流程 | ~50 |
+### 2.1 创建 GitHub 组织
 
-总计约 580 个施工步骤。
+1. 访问 github.com，创建组织 Sailfish-Studio
+2. 上传头像，填写描述
+3. 开启双因素认证强制要求
+4. 设置基础成员权限为 Read
+5. 添加分支保护规则（main 分支要求 PR + 审查 + CI 通过）
 
----
+### 2.2 Fork 上游仓库
 
-## 一、组织与仓库层（GitHub）
+| 上游仓库 | SF 仓库 |
+|----------|---------|
+| TurboWarp/scratch-vm | sf-vm |
+| TurboWarp/scratch-blocks | sf-blocks |
+| TurboWarp/scratch-render | sf-renderer |
+| TurboWarp/scratch-gui | sf-editor |
+| TurboWarp/extensions | sf-extensions |
+| TurboWarp/packager | sf-packager |
+| TurboWarp/desktop | sf-desktop |
+| TurboWarp/scratch-parser | sf-parser |
+| TurboWarp/scratch-storage | sf-storage |
+| TurboWarp/scratch-audio | sf-audio |
+| TurboWarp/scratch-paint | sf-paint |
+| TurboWarp/scratch-l10n | sf-l10n |
+| TurboWarp/cloud-server | sf-cloud-server |
 
-### 1.1 创建组织
+### 2.3 新建仓库
 
-- [ ] 创建 GitHub 组织：Sailfish-Studio
-- [ ] 配置组织团队：core（核心开发）、docs（文档）、triage（问题分流）
-- [ ] 启用组织安全策略：双因素认证、SAML SSO（如需）
-- [ ] 配置组织级别的 Dependabot 和 secret scanning
+```bash
+# 创建 Monorepo 核心仓库
+git init sf-core
+git init sf-tools
+git init sf-services
+git init sf-docs
+git init sf-runtime
+```
 
-### 1.2 Fork 上游仓库并重命名
+### 2.4 配置 Monorepo 根
 
-将 TurboWarp 下所有仓库 Fork 到组织，并重命名：
+在 sf-core/ 根目录创建 `Cargo.toml`:
 
-| 上游仓库 | 新名称 | 用途 |
-|----------|--------|------|
-| scratch-vm | sf-vm | 虚拟机 → Rust 引擎 |
-| scratch-blocks | sf-blocks | 积木引擎 → Canvas 自研 |
-| scratch-render | sf-renderer | 渲染器 → Rust WebGL2 |
-| scratch-gui | sf-editor | 编辑器 → Rust UI 框架 |
-| extensions | sf-extensions | 扩展市场 + 高级扩展 |
-| packager | sf-packager | 打包器增强 |
-| desktop | sf-desktop | Electron → Tauri |
-| scratch-parser | sf-parser | 解析器 → Rust |
-| 其他辅助库 | sf-* 前缀 | 全部带上 sf- 前缀 |
+```toml
+[workspace]
+members = [
+    "sf-vm",
+    "sf-blocks",
+    "sf-renderer",
+    "sf-parser",
+    "sf-storage",
+    "sf-audio",
+]
+```
 
-### 1.3 新增仓库（Monorepo 体系）
+创建 `rust-toolchain.toml`:
 
-| 新仓库名 | 用途 |
-|----------|------|
-| sf-core | Rust 工作区，合并所有核心 Rust crate |
-| sf-tools | 合并打包器、CLI 等工具 |
-| sf-services | 云端服务（Cloudflare Workers） |
-| sf-docs | 文档站（VitePress） |
-| sf-runtime | 独立运行时（命令行工具） |
-| sf-aot-compiler | AOT 编译器（Rust + LLVM） |
-
----
-
-## 二、代码层：每个仓库的具体修改动作
-
-### 2.1 sf-vm（原 scratch-vm）
-
-**目标：JS 虚拟机 → Rust 引擎**
-
-- [ ] 删除所有 JavaScript 源码（保留旧版本在 Git 历史）
-- [ ] 添加 `Cargo.toml`，配置 `wasm-bindgen`, `serde`, `zip` 等依赖
-- [ ] 新建 `src/` 下的 Rust 模块：
-  - [ ] `src/project/`：加载 .sf (SQLite), .sb3, .sfl 解析
-  - [ ] `src/compiler/`：积木 AST → JavaScript 代码生成
-  - [ ] `src/runtime/`：状态管理、操作执行器（运动、外观等）
-  - [ ] `src/extension/`：扩展系统接口（保留 JS 扩展兼容）
-  - [ ] `src/settings/`：分层设置引擎
-- [ ] 保留但修改 `Scratch.extensions.register` 接口，内部改由 Rust 实现桥接
-- [ ] 新增编译为 Wasm 的入口 `lib.rs`，导出 `sf_vm_create` 等 API（对应 `docs/api/01-sf-vm-api.md`）
-
-### 2.2 sf-blocks（原 scratch-blocks）
-
-**目标：Google Blockly → 自研 Canvas 引擎**
-
-- [ ] 删除所有 Blockly 相关 JS 代码
-- [ ] 添加 `Cargo.toml`，依赖 `web-sys` (Canvas 2D)
-- [ ] 新建 `src/` 下模块：
-  - [ ] `src/layout/`：积木几何布局
-  - [ ] `src/renderer/`：Canvas 绘制
-  - [ ] `src/drag/`：拖拽与吸附（对应 `docs/design/ui/07-components/block-canvas.md`）
-  - [ ] `src/trail/`：动态模糊拖尾
-  - [ ] `src/toolbox/`：工具箱
-  - [ ] `src/history/`：撤销/重做
-- [ ] 实现与 sf-vm 通过 JSON 交互的序列化接口
-
-### 2.3 sf-renderer（原 scratch-render）
-
-**目标：WebGL JS → Rust + WebGL2**
-
-- [ ] 删除原始 JS 代码
-- [ ] 添加 `Cargo.toml`，依赖 `web-sys` (WebGL2), `resvg`, `lyon`
-- [ ] 新建 `src/` 下模块：
-  - [ ] `src/webgl/`：着色器、缓冲区、纹理
-  - [ ] `src/svg/`：SVG 解析与三角化
-  - [ ] `src/commands/`：绘制指令队列
-
-### 2.4 sf-editor（原 scratch-gui）
-
-**目标：React 界面 → Rust 自研 UI 框架**
-
-- [ ] 删除所有 React 组件（`src/components/`, `src/containers/` 等）
-- [ ] 保留并适配 `src/addons/` 中的社区插件接口
-- [ ] 添加 `Cargo.toml` 作为 Rust 项目入口（通过 `wasm-pack` 构建）
-- [ ] 新建 Rust UI 框架（sf-ui），实现：
-  - [ ] 设计令牌系统（颜色、间距、字体）— 对应 `docs/design/ui/01-design-principles.md` 至 `05-iconography.md`
-  - [ ] 基础组件库（按钮、输入框、弹窗、树等）— 对应 `docs/design/ui/07-components/`
-  - [ ] 编辑器布局（标题栏、菜单、工具栏、面板）— 对应 `docs/design/ui/08-layout.md`
-- [ ] 集成 sf-blocks 和 sf-renderer 的 Canvas
-- [ ] 配置 Turbopack 构建配置（`next.config.ts`），打包所有 Wasm 模块
-
-### 2.5 sf-extensions（原 extensions）
-
-**目标：扩展市场 + 高级扩展合集**
-
-- [ ] 保留原有 `extensions/` 目录中的所有 JS 扩展
-- [ ] 为每个扩展添加 `extension.json`
-- [ ] 新建 21 个高级扩展的目录和代码（Rust/C++/TS）
-- [ ] 修改市场网站前端（可用 Rust 重写或保留原样但品牌化）
-
-### 2.6 sf-packager（原 packager）
-
-**目标：打包器增强**
-
-- [ ] 保留 HTML/ZIP 打包核心逻辑
-- [ ] 新增 SWF 导出模块（集成 Ruffle）
-- [ ] 新增 MP4/GIF 导出模块（WebCodecs）
-- [ ] 新增 APK 导出模块（Tauri 移动端）
-- [ ] 修改品牌化，内部常量替换为 SF
-
-### 2.7 sf-desktop（原 desktop）
-
-**目标：Electron → Tauri**
-
-- [ ] 删除 `node_modules/`, Electron 相关配置
-- [ ] 添加 `src-tauri/` 及 `Cargo.toml`
-- [ ] 配置 `tauri.conf.json`：无边框窗口，指定 sf-editor 构建产物为前端
-- [ ] 实现 Rust 侧 Tauri 命令：文件对话框、自动更新、SQLite 存储
-
-### 2.8 新增仓库：sf-runtime
-
-- [ ] 新建独立的 Rust 项目，使用 `clap` 构建 CLI
-- [ ] 实现 `sf run`：运行 .sf/.sfl 项目
-- [ ] 实现 `sf pack`：打包项目
-- [ ] 实现 `sf new`：新建项目
-- [ ] 实现 `sf check`：检查项目
-- [ ] 集成 sf-vm 作为解释核心
-
-### 2.9 新增仓库：sf-aot-compiler
-
-- [ ] 新建 Rust 项目，后端使用 LLVM（`cranelift` 或 `llvm-sys`）
-- [ ] 实现读取 .sf/.sfl，输出原生可执行文件
-- [ ] 支持目标平台：Windows / macOS / Linux
+```toml
+[toolchain]
+channel = "stable"
+targets = ["wasm32-unknown-unknown"]
+```
 
 ---
 
-## 三、构建系统与代码规范修改
+## 3. Phase 2: 核心引擎 Rust 重写
 
-### 3.1 Monorepo 配置
+### 3.1 sf-vm 数据模型与解析
 
-- [ ] 在根目录建立 `Cargo.toml` (workspace)
-- [ ] 在根目录建立 `pnpm-workspace.yaml`
-- [ ] 配置 workspace 成员路径
+#### 3.1.1 初始化 crate
 
-### 3.2 Turbopack 配置
+```bash
+cd sf-core
+mkdir sf-vm && cd sf-vm
+cargo init --lib --name sf-vm
+```
 
-- [ ] 在 `sf-editor/next.config.ts` 中添加 WASM 加载规则
-- [ ] 配置 `wasm-pack` 构建产物输出目录
-- [ ] 配置 Turbopack dev server 与 `wasm-pack` 的热重载联动
+#### 3.1.2 配置 Cargo.toml
 
-### 3.3 代码规范强制
+```toml
+[package]
+name = "sf-vm"
+version = "0.1.0"
+edition = "2021"
 
-- [ ] 禁止魔法数字：所有数值必须定义为常量（如 `MAGNETIC_SNAP_DISTANCE_PX = 8`）
-- [ ] Rust Lint：`cargo clippy -- -D warnings`
-- [ ] JS/TS Lint：Biome 严格模式
-- [ ] 格式化：`cargo fmt` + Biome format
-- [ ] 所有公共 API 必须有文档注释（`///` / JSDoc）
+[lib]
+crate-type = ["cdylib", "rlib"]
 
-### 3.4 测试配置
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "1"
+wee_alloc = "0.4"
+zip = "0.6"
+rusqlite = { version = "0.31", features = ["bundled"] }
+base64 = "0.22"
 
-- [ ] Rust 单元测试：`cargo-nextest` + `wasm-bindgen-test`
-- [ ] 前端测试：Vitest + Playwright
-- [ ] CLI 集成测试：pytest (Python)
-- [ ] 模糊测试：`cargo-fuzz`
-- [ ] 覆盖率：`cargo-tarpaulin` (Rust) / Vitest coverage (TS)
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+proptest = "1"
+```
+
+#### 3.1.3 实现数据模型
+
+创建 `src/project/mod.rs`:
+
+```rust
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Project {
+    pub meta: ProjectMeta,
+    pub targets: Vec<Target>,
+    pub extensions: Vec<String>,
+    pub monitors: Vec<Monitor>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectMeta {
+    pub semver: String,
+    pub vm: String,
+    pub agent: String,
+    pub name: String,
+    pub author: String,
+    pub version: String,
+    pub created: String,
+    pub modified: String,
+    pub checksum: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Target {
+    pub is_stage: bool,
+    pub name: String,
+    pub variables: HashMap<String, Variable>,
+    pub lists: HashMap<String, List>,
+    pub blocks: HashMap<String, Block>,
+    pub broadcasts: HashMap<String, Broadcast>,
+    pub comments: HashMap<String, Comment>,
+    pub costumes: Vec<Costume>,
+    pub sounds: Vec<Sound>,
+    pub current_costume: usize,
+    pub volume: f64,
+    pub layer_order: usize,
+    pub visible: bool,
+    pub x: f64,
+    pub y: f64,
+    pub size: f64,
+    pub direction: f64,
+    pub draggable: bool,
+    pub rotation_style: String,
+}
+
+// Block, Input, Field, Value, Costume, Sound, Variable, List, Broadcast, Comment, Monitor 等结构体...
+// 完整实现见设计文档 04-editor.md 和 02-concepts.md
+```
+
+#### 3.1.4 实现 .sf 文件加载 (SQLite)
+
+创建 `src/project/load_sf.rs`:
+
+```rust
+use rusqlite::Connection;
+
+impl Project {
+    pub fn load_sf(path: &str) -> Result<Self, VmError> {
+        let conn = Connection::open(path)?;
+
+        // 读取元信息
+        let meta = conn.query_row("SELECT * FROM project_meta WHERE id = 1", [], |row| {
+            Ok(ProjectMeta { /* ... */ })
+        })?;
+
+        // 读取 targets
+        let mut stmt = conn.prepare("SELECT * FROM targets")?;
+        let targets = stmt.query_map([], |row| {
+            Ok(Target { /* ... */ })
+        })?.collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Project { meta, targets, /* ... */ })
+    }
+}
+```
+
+#### 3.1.5 实现 .sb3 文件加载 (ZIP)
+
+```rust
+impl Project {
+    pub fn load_sb3(data: &[u8]) -> Result<Self, VmError> {
+        let reader = std::io::Cursor::new(data);
+        let mut archive = zip::ZipArchive::new(reader)?;
+        let project_json = archive.by_name("project.json")?;
+        let project: Project = serde_json::from_reader(project_json)?;
+        Ok(project)
+    }
+}
+```
+
+### 3.2 sf-vm 编译器
+
+#### 3.2.1 创建编译器模块
+
+创建 `src/compiler/mod.rs`:
+
+```rust
+pub mod js_generator;
+
+use crate::project::Project;
+
+pub fn compile(project: &Project) -> Result<String, CompileError> {
+    let mut code = String::new();
+
+    // 生成类声明
+    code.push_str("class Project {\n");
+    code.push_str("  constructor() {\n");
+    code.push_str("    this.targets = {};\n");
+    code.push_str("  }\n");
+
+    // 为每个 target 生成方法
+    for target in &project.targets {
+        let target_code = compile_target(target)?;
+        code.push_str(&target_code);
+    }
+
+    code.push_str("}\n");
+    Ok(code)
+}
+
+fn compile_target(target: &Target) -> Result<String, CompileError> {
+    // 遍历积木树，生成 JS 代码
+    // ...
+}
+```
+
+#### 3.2.2 实现 JS 代码生成器
+
+创建 `src/compiler/js_generator.rs`:
+
+```rust
+use crate::ops::opcode::Opcode;
+
+pub fn generate_block_js(opcode: &Opcode, args: &HashMap<String, String>) -> String {
+    match opcode {
+        Opcode::MotionMoveSteps => format!("await this.moveSteps({});", args["STEPS"]),
+        Opcode::LooksSay => format!("await this.say(\"{}\");", args["MESSAGE"]),
+        Opcode::ControlRepeat => {
+            let count = &args["TIMES"];
+            let body = &args["SUBSTACK"];
+            format!("for (let i = 0; i < {}; i++) {{\n{}\n}}", count, body)
+        }
+        // ... 所有 125+ 操作码
+        _ => "".to_string()
+    }
+}
+```
+
+### 3.3 sf-vm 执行器
+
+#### 3.3.1 创建运行时状态
+
+创建 `src/runtime/mod.rs`:
+
+```rust
+pub struct RuntimeState {
+    pub targets: Vec<TargetState>,
+    pub stage_index: usize,
+    pub event_queue: VecDeque<RuntimeEvent>,
+    pub clones: Vec<CloneData>,
+    pub timer: f64,
+    pub running: bool,
+}
+
+pub struct TargetState {
+    pub id: String,
+    pub name: String,
+    pub variables: HashMap<String, Value>,
+    pub lists: HashMap<String, Vec<Value>>,
+    pub x: f64,
+    pub y: f64,
+    pub direction: f64,
+    pub size: f64,
+    pub visible: bool,
+    pub current_costume: usize,
+    pub volume: f64,
+    pub pen_down: bool,
+    pub pen_color: String,
+    pub pen_size: f64,
+}
+```
+
+#### 3.3.2 实现操作函数
+
+创建 `src/ops/motion.rs`:
+
+```rust
+use crate::runtime::RuntimeState;
+
+pub fn move_steps(state: &mut RuntimeState, target_idx: usize, steps: f64) {
+    let target = &mut state.targets[target_idx];
+    let angle = target.direction.to_radians();
+    target.x += steps * angle.cos();
+    target.y += steps * angle.sin();
+
+    // 边缘反弹检查
+    if target.x > STAGE_MAX_WIDTH as f64 || target.x < STAGE_MIN_WIDTH as f64 {
+        target.direction = 180.0 - target.direction;
+    }
+    if target.y > STAGE_MAX_HEIGHT as f64 || target.y < STAGE_MIN_HEIGHT as f64 {
+        target.direction = -target.direction;
+    }
+}
+```
+
+创建 `src/ops/mod.rs`，为每个积木类别创建子模块：`motion.rs`, `looks.rs`, `sound.rs`, `pen.rs`, `events.rs`, `control.rs`, `sensing.rs`, `operators.rs`, `variables.rs`。
+
+### 3.4 sf-vm 扩展系统
+
+创建 `src/extension/mod.rs`:
+
+```rust
+pub trait SfExtension: Send + Sync {
+    fn info(&self) -> ExtensionInfo;
+    fn blocks(&self) -> Vec<BlockDefinition>;
+    fn execute(&self, opcode: &str, args: &[Value], state: &mut RuntimeState) -> Option<Value>;
+    fn settings(&self) -> Vec<SettingDefinition> { vec![] }
+    fn on_install(&self) {}
+    fn on_uninstall(&self) {}
+}
+
+pub struct ExtensionManager {
+    extensions: Vec<Box<dyn SfExtension>>,
+}
+
+impl ExtensionManager {
+    pub fn register(&mut self, ext: Box<dyn SfExtension>) {
+        self.extensions.push(ext);
+    }
+
+    pub fn execute(&self, opcode: &str, args: &[Value], state: &mut RuntimeState) -> Option<Value> {
+        for ext in &self.extensions {
+            if let Some(result) = ext.execute(opcode, args, state) {
+                return Some(result);
+            }
+        }
+        None
+    }
+}
+```
+
+### 3.5 sf-vm 设置引擎
+
+创建 `src/settings/mod.rs`:
+
+```rust
+pub struct SettingsEngine {
+    defaults: HashMap<String, Value>,
+    user: HashMap<String, Value>,
+    project: HashMap<String, Value>,
+    session: HashMap<String, Value>,
+    subscribers: HashMap<String, Vec<Box<dyn Fn(&Value)>>>,
+}
+
+impl SettingsEngine {
+    pub fn get(&self, key: &str) -> Option<Value> {
+        self.session.get(key)
+            .or_else(|| self.project.get(key))
+            .or_else(|| self.user.get(key))
+            .or_else(|| self.defaults.get(key))
+            .cloned()
+    }
+
+    pub fn set(&mut self, key: &str, value: Value, layer: SettingLayer) {
+        match layer {
+            SettingLayer::User => { self.user.insert(key.to_string(), value.clone()); }
+            SettingLayer::Project => { self.project.insert(key.to_string(), value.clone()); }
+            SettingLayer::Session => { self.session.insert(key.to_string(), value.clone()); }
+        }
+        // 通知订阅者
+        if let Some(callbacks) = self.subscribers.get(key) {
+            for cb in callbacks {
+                cb(&value);
+            }
+        }
+    }
+}
+```
+
+### 3.6 sf-vm WASM 导出
+
+在 `src/lib.rs` 中添加：
+
+```rust
+use wasm_bindgen::prelude::*;
+
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+#[wasm_bindgen]
+pub fn sf_vm_create() -> *mut RuntimeState {
+    let state = Box::new(RuntimeState::new());
+    Box::into_raw(state)
+}
+
+#[wasm_bindgen]
+pub fn sf_vm_compile(state_ptr: *mut RuntimeState, project_json: &str) -> String {
+    let state = unsafe { &mut *state_ptr };
+    let project: Project = serde_json::from_str(project_json).unwrap();
+    compile(&project).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn sf_vm_execute(
+    state_ptr: *mut RuntimeState,
+    opcode: &str,
+    args_json: &str
+) -> Result<String, JsValue> {
+    let state = unsafe { &mut *state_ptr };
+    let args: HashMap<String, Value> = serde_json::from_str(args_json)?;
+    // 执行积木逻辑...
+    Ok(serde_json::to_string(&result)?)
+}
+
+#[wasm_bindgen]
+pub fn sf_vm_destroy(state_ptr: *mut RuntimeState) {
+    unsafe { drop(Box::from_raw(state_ptr)); }
+}
+```
+
+### 3.7 sf-blocks 积木编辑器
+
+#### 3.7.1 初始化 crate
+
+```bash
+cd sf-core
+mkdir sf-blocks && cd sf-blocks
+cargo init --lib --name sf-blocks
+```
+
+#### 3.7.2 配置 Cargo.toml
+
+```toml
+[dependencies]
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["CanvasRenderingContext2d", "Element", "Event", "MouseEvent"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+lyon_geom = "1"
+```
+
+#### 3.7.3 实现积木布局引擎
+
+创建 `src/layout.rs`:
+
+```rust
+pub struct BlockLayout {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub notch_x: f64,
+    pub bump_x: f64,
+}
+
+pub fn compute_layout(opcode: &str, fields: &HashMap<String, String>) -> BlockLayout {
+    let text = fields.get("TEXT").cloned().unwrap_or_default();
+    let text_width = text.len() as f64 * 8.0; // 估算文本宽度
+    let width = (text_width + 32.0).max(64.0); // 最小宽度 64px
+
+    BlockLayout {
+        width,
+        height: 32.0,
+        notch_x: width / 2.0 - 4.0,
+        bump_x: width / 2.0 - 4.0,
+        x: 0.0,
+        y: 0.0,
+    }
+}
+```
+
+#### 3.7.4 实现 Canvas 渲染器
+
+创建 `src/renderer.rs`:
+
+```rust
+use web_sys::CanvasRenderingContext2d;
+
+const CATEGORY_COLORS: &[(&str, &str)] = &[
+    ("motion", "#4C97FF"),
+    ("looks", "#9966FF"),
+    ("sound", "#CF63CF"),
+    ("events", "#DE9E2C"),
+    ("control", "#FFAB19"),
+    ("sensing", "#5CB1D6"),
+    ("operators", "#59C059"),
+    ("variables", "#FF8C1A"),
+    ("myblocks", "#FF6680"),
+];
+
+pub fn draw_block(ctx: &CanvasRenderingContext2d, layout: &BlockLayout, category: &str, text: &str) {
+    let color = CATEGORY_COLORS.iter()
+        .find(|(cat, _)| *cat == category)
+        .map(|(_, c)| *c)
+        .unwrap_or("#CCCCCC");
+
+    // 绘制积木背景
+    ctx.set_fill_style_str(color);
+    ctx.begin_path();
+    // 圆角矩形
+    ctx.rect(layout.x, layout.y, layout.width, layout.height);
+    ctx.fill();
+
+    // 绘制文字
+    ctx.set_fill_style_str("#FFFFFF");
+    ctx.set_font("13px sans-serif");
+    ctx.fill_text(text, layout.x + 8.0, layout.y + 22.0)?;
+}
+```
+
+#### 3.7.5 实现拖拽与吸附
+
+创建 `src/drag.rs`:
+
+```rust
+const SNAP_DISTANCE: f64 = 8.0;
+
+pub struct DragState {
+    pub dragging: bool,
+    pub block_id: Option<String>,
+    pub offset_x: f64,
+    pub offset_y: f64,
+}
+
+pub fn check_snap(mouse_x: f64, mouse_y: f64, target_x: f64, target_y: f64) -> bool {
+    let dx = mouse_x - target_x;
+    let dy = mouse_y - target_y;
+    (dx * dx + dy * dy).sqrt() < SNAP_DISTANCE
+}
+```
+
+#### 3.7.6 实现动态模糊拖尾
+
+创建 `src/trail.rs`:
+
+```rust
+const TRAIL_FRAMES: usize = 6;
+const TRAIL_ALPHA_START: f64 = 0.8;
+const TRAIL_ALPHA_END: f64 = 0.1;
+
+pub struct TrailRenderer {
+    positions: VecDeque<(f64, f64)>,
+}
+
+impl TrailRenderer {
+    pub fn record(&mut self, x: f64, y: f64) {
+        self.positions.push_back((x, y));
+        if self.positions.len() > TRAIL_FRAMES {
+            self.positions.pop_front();
+        }
+    }
+
+    pub fn render(&self, ctx: &CanvasRenderingContext2d, block_width: f64, block_height: f64) {
+        for (i, (x, y)) in self.positions.iter().enumerate() {
+            let alpha = TRAIL_ALPHA_START - (i as f64) * (TRAIL_ALPHA_START - TRAIL_ALPHA_END) / TRAIL_FRAMES as f64;
+            ctx.set_global_alpha(alpha);
+            ctx.set_stroke_style_str("#2563EB");
+            ctx.stroke_rect(*x, *y, block_width, block_height);
+        }
+        ctx.set_global_alpha(1.0);
+    }
+}
+```
+
+### 3.8 sf-renderer 舞台渲染器
+
+#### 3.8.1 初始化 crate
+
+```bash
+cd sf-core
+mkdir sf-renderer && cd sf-renderer
+cargo init --lib --name sf-renderer
+```
+
+#### 3.8.2 配置 Cargo.toml
+
+```toml
+[dependencies]
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["WebGl2RenderingContext", "CanvasRenderingContext2d"] }
+lyon = "1"
+resvg = "0.37"
+```
+
+#### 3.8.3 实现 WebGL2 渲染管线
+
+创建 `src/webgl.rs`:
+
+```rust
+use web_sys::WebGl2RenderingContext;
+
+pub fn init_webgl(canvas: &HtmlCanvasElement) -> Result<WebGl2RenderingContext, JsValue> {
+    canvas.get_context("webgl2")?.map(|ctx| ctx.dyn_into::<WebGl2RenderingContext>().unwrap())
+}
+
+pub fn compile_shader(gl: &WebGl2RenderingContext, source: &str, shader_type: u32) -> Result<WebGlShader, String> {
+    let shader = gl.create_shader(shader_type).ok_or("Cannot create shader")?;
+    gl.shader_source(&shader, source);
+    gl.compile_shader(&shader);
+
+    if gl.get_shader_parameter(&shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap_or(false) {
+        Ok(shader)
+    } else {
+        Err(gl.get_shader_info_log(&shader).unwrap_or_default())
+    }
+}
+```
+
+#### 3.8.4 实现 SVG 解析
+
+创建 `src/svg.rs`:
+
+```rust
+use resvg::usvg;
+
+pub fn parse_svg(data: &[u8]) -> Result<usvg::Tree, Box<dyn std::error::Error>> {
+    let tree = usvg::Tree::from_data(data, &usvg::Options::default())?;
+    Ok(tree)
+}
+
+pub fn triangulate(tree: &usvg::Tree) -> Vec<Vertex> {
+    // 使用 lyon 将 SVG 路径三角化
+    // ...
+    vec![]
+}
+```
+
+### 3.9 sf-parser 解析器
+
+#### 3.9.1 初始化
+
+```bash
+cd sf-core
+mkdir sf-parser && cd sf-parser
+cargo init --lib --name sf-parser
+```
+
+#### 3.9.2 配置
+
+```toml
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+zip = "0.6"
+rusqlite = { version = "0.31", features = ["bundled"] }
+thiserror = "1"
+```
+
+#### 3.9.3 实现
+
+创建 `src/lib.rs`:
+
+```rust
+pub fn parse_sb3(data: &[u8]) -> Result<serde_json::Value, ParseError> {
+    let reader = std::io::Cursor::new(data);
+    let mut archive = zip::ZipArchive::new(reader)?;
+    let project = archive.by_name("project.json")?;
+    let value = serde_json::from_reader(project)?;
+    Ok(value)
+}
+
+pub fn parse_sf(path: &str) -> Result<serde_json::Value, ParseError> {
+    let conn = rusqlite::Connection::open(path)?;
+    // 读取数据并转换为 JSON
+    // ...
+    Ok(serde_json::Value::Null)
+}
+
+pub fn parse_sfl(source: &str) -> Result<serde_json::Value, ParseError> {
+    // .sfl 文本解析为 JSON AST
+    // ...
+    Ok(serde_json::Value::Null)
+}
+```
 
 ---
 
-## 四、文档体系建立
+## 4. Phase 3: 编辑器 UI 框架
 
-在 `docs/` 下按已认可的结构放置所有文档的 .md 文件，保持多文件引用。
+### 4.1 初始化 sf-editor
 
-| 文档集 | 目录 | 文件数 | 状态 |
-|--------|------|--------|------|
-| 需求文档 | `docs/requirements/` | 15 | ✅ 已完成 |
-| 设计文档 | `docs/design/` | 34 | ✅ 已完成 |
-| 开发文档 | `docs/development/` | 9 | ✅ 已完成（含本文件） |
-| API 参考 | `docs/api/` | 5 | ✅ 已完成 |
-| 运维文档 | `docs/operations/` | 5 | ✅ 已完成 |
-| 用户文档 | `docs/user/` | 6 | ✅ 已完成 |
+```bash
+cd sf-editor
+pnpm create next-app@latest . --typescript --turbopack --app
+```
+
+### 4.2 安装依赖
+
+```bash
+pnpm add zustand @phosphor-icons/react react-aria-components @tanstack/react-table next-intl
+pnpm add -D vitest @testing-library/react @playwright/test @axe-core/playwright
+```
+
+### 4.3 配置构建
+
+`next.config.ts`:
+
+```typescript
+const nextConfig = {
+  output: 'export',
+  turbopack: {
+    rules: { '*.wasm': { loaders: ['wasm'] } }
+  }
+};
+```
+
+### 4.4 实现设计令牌
+
+创建 `src/design/tokens/`，按设计文档实现颜色、字体、间距、圆角、阴影、动画令牌。
+
+### 4.5 实现 UI 组件库
+
+在 `src/components/` 下实现按钮、输入框、下拉菜单、弹窗、树形视图、选项卡、工具栏、面板、状态栏。
+
+### 4.6 实现编辑器布局
+
+创建 `src/app/layout.tsx` 和 `src/app/page.tsx`，组装标题栏、菜单、工具栏、工具箱、积木画布、舞台、右侧面板。
+
+### 4.7 加载 WASM 模块
+
+创建 `src/lib/wasm.ts`:
+
+```typescript
+let vmModule: any = null;
+
+export async function loadWasm() {
+  if (!vmModule) {
+    vmModule = await import('../../wasm/sf-vm/sf_vm.js');
+    await vmModule.default();
+  }
+  return vmModule;
+}
+```
+
+### 4.8 实现状态管理
+
+使用 Zustand 创建 `useProjectStore`, `useEditorStore`, `useSettingsStore`。
 
 ---
 
-## 阅读指南
+## 5. Phase 4: 多人协作系统
 
-- 每份子清单包含具体的、可检查的任务项
-- 每项任务对应到具体的仓库和模块
-- 任务完成后在 `[ ]` 中标记为 `[x]`
-- 任务阻塞项（前置依赖）在任务描述中注明
+### 5.1 协作服务器搭建
+
+- 使用 Rust + WebSocket 构建信令服务器
+- 实现房间管理、消息广播
+
+### 5.2 实现 OT 算法
+
+- 积木树操作的变换函数
+- 变量操作的 LWW 策略
+
+### 5.3 实现用户存在感
+
+- 光标位置同步
+- 编辑状态广播
+
+### 5.4 实现用户系统
+
+- 注册/登录 API
+- OAuth 集成
+
+### 5.5 实现离线同步
+
+- IndexedDB 操作日志
+- 恢复连接同步流程
+
+---
+
+## 6. Phase 5: 运行时与打包器
+
+### 6.1 SF Runtime CLI
+
+```bash
+cd sf-runtime
+cargo init --name sf
+```
+
+使用 clap 构建 CLI:
+
+```rust
+use clap::{Command, Arg};
+
+fn main() {
+    let matches = Command::new("sf")
+        .subcommand(Command::new("run").arg(Arg::new("file")))
+        .subcommand(Command::new("pack").arg(Arg::new("file")))
+        .subcommand(Command::new("new").arg(Arg::new("name")))
+        .subcommand(Command::new("check").arg(Arg::new("file")))
+        .get_matches();
+    // 处理命令...
+}
+```
+
+### 6.2 sf-packager 增强
+
+- 新增 SWF、MP4、GIF、APK 导出模块
+
+### 6.3 AOT 编译器
+
+- 后端使用 LLVM (cranelift 或 llvm-sys)
+- 实现 .sf/.sfl → 原生可执行文件
+
+---
+
+## 7. Phase 6: 桌面端与移动端
+
+### 7.1 Tauri 桌面端
+
+```bash
+cd sf-desktop
+pnpm create tauri-app@latest .
+```
+
+- 配置 `tauri.conf.json`
+- 实现 Rust 侧命令
+- 打包分发
+
+### 7.2 Android 平板端
+
+- 独立 UI 适配
+- 触控优化
+- APK 打包
+
+---
+
+## 8. Phase 7: 扩展市场与生态
+
+### 8.1 扩展市场网站
+
+- 搜索、分类、详情页、一键安装
+
+### 8.2 首批高级扩展开发
+
+- 21 个扩展，使用 Rust/C++/TS
+
+---
+
+## 9. Phase 8: 测试与发布
+
+### 9.1 单元测试
+
+```bash
+cargo nextest run   # Rust
+pnpm test            # TypeScript
+```
+
+### 9.2 E2E 测试
+
+```bash
+pnpm e2e             # Playwright
+```
+
+### 9.3 发布
+
+- Web 端部署 Cloudflare Pages
+- 桌面端 GitHub Releases
