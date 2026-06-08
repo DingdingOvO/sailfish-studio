@@ -6,6 +6,8 @@
 
 Sailfish Studio 扩展 API 允许开发者创建新的积木，扩展 SF 语言的功能。扩展可用 JavaScript、Rust 或 C++ 编写。
 
+> 对应 API 参考文档：`docs/api/02-extension-api.md`
+
 2. JavaScript API
 
 ```js
@@ -15,7 +17,8 @@ class MyExtension {
       id: 'my-extension',
       name: 'My Extension',
       version: '1.0.0',
-      description: 'My custom blocks'
+      description: 'My custom blocks',
+      author: 'username'
     };
   }
 
@@ -37,6 +40,13 @@ class MyExtension {
       console.log(args.PARAM);
     }
   }
+
+  // 设置定义 (可选)
+  static getSettings() { return [ { key, type, default, title } ]; }
+
+  // 生命周期 (可选)
+  static onInstall() { }
+  static onUninstall() { }
 }
 
 Scratch.extensions.register(new MyExtension());
@@ -52,6 +62,9 @@ impl SfExtension for MyExtension {
     fn info(&self) -> ExtensionInfo { ... }
     fn blocks(&self) -> Vec<BlockDefinition> { ... }
     fn execute(&self, opcode: &str, args: &[Value], state: &mut RuntimeState) -> Option<Value> { ... }
+    fn settings(&self) -> Vec<SettingDefinition> { ... }
+    fn on_install(&self) { ... }
+    fn on_uninstall(&self) { ... }
 }
 ```
 

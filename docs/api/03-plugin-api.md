@@ -1,5 +1,7 @@
 # 03 - 插件 API 完整参考
 
+> 对应设计文档：`docs/design/extensions/03-plugin-api.md`
+
 ## 注册
 
 ```js
@@ -7,7 +9,7 @@ sailfish.plugins.register({
   id: 'my-plugin',
   name: 'My Plugin',
   version: '1.0.0',
-  permissions: ['ui', 'theme'],
+  permissions: ['ui', 'theme', 'shortcuts'],
   activate() { /* 插件激活 */ },
   deactivate() { /* 插件停用 */ }
 });
@@ -28,11 +30,15 @@ sailfish.ui.registerContextMenu({ id, label, icon, predicate, action });
 
 ## 主题扩展
 
+主题可覆盖颜色、字体、圆角、阴影：
+
 ```js
 sailfish.theme.register({
   name: 'My Theme',
   colors: { primary: '#FF0000', ... },
-  fonts: { sans: '...', mono: '...' }
+  fonts: { sans: '...', mono: '...' },
+  radii: { sm: 4, md: 6, lg: 8 },
+  shadows: { card: '0 2px 8px rgba(0,0,0,0.3)' }
 });
 ```
 
@@ -49,6 +55,9 @@ sailfish.shortcuts.register('my-command', {
 
 ```js
 sailfish.hooks.onProjectOpen((project) => { ... });
+sailfish.hooks.onProjectClose((project) => { ... });
 sailfish.hooks.onBeforeSave((project) => { ... });
+sailfish.hooks.onAfterSave((project) => { ... });
+sailfish.hooks.onBeforeCompile((project) => { ... });
 sailfish.hooks.onAfterCompile((jsCode) => { ... });
 ```

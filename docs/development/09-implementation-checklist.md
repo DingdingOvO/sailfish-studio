@@ -389,8 +389,9 @@ pub fn move_steps(state: &mut RuntimeState, target_idx: usize, steps: f64) {
     target.y += steps * angle.sin();
 
     // 边缘反弹检查
+    const BOUNCE_ANGLE_OFFSET: f64 = 180.0;
     if target.x > STAGE_MAX_WIDTH as f64 || target.x < STAGE_MIN_WIDTH as f64 {
-        target.direction = 180.0 - target.direction;
+        target.direction = BOUNCE_ANGLE_OFFSET - target.direction;
     }
     if target.y > STAGE_MAX_HEIGHT as f64 || target.y < STAGE_MIN_HEIGHT as f64 {
         target.direction = -target.direction;
@@ -489,10 +490,11 @@ pub fn sf_vm_create() -> *mut RuntimeState {
 }
 
 #[wasm_bindgen]
-pub fn sf_vm_compile(state_ptr: *mut RuntimeState, project_json: &str) -> String {
-    let state = unsafe { &mut *state_ptr };
-    let project: Project = serde_json::from_str(project_json).unwrap();
-    compile(&project).unwrap()
+pub fn sf_vm_compile(state_ptr: *mut RuntimeState, project_json: &str) -> Result<String, JsValue> {
+    // SAFETY: Reviewed — pointer comes from sf_vm_create which uses Box::into_raw
+    let _state = unsafe { &mut *state_ptr };
+    let project: Project = serde_json::from_str(project_json)?;
+    compile(&project).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 #[wasm_bindgen]
@@ -501,6 +503,7 @@ pub fn sf_vm_execute(
     opcode: &str,
     args_json: &str
 ) -> Result<String, JsValue> {
+    // SAFETY: Reviewed — pointer comes from sf_vm_create which uses Box::into_raw
     let state = unsafe { &mut *state_ptr };
     let args: HashMap<String, Value> = serde_json::from_str(args_json)?;
     // 执行积木逻辑...
@@ -509,6 +512,8 @@ pub fn sf_vm_execute(
 
 #[wasm_bindgen]
 pub fn sf_vm_destroy(state_ptr: *mut RuntimeState) {
+    // SAFETY: Reviewed — pointer was created by sf_vm_create via Box::into_raw
+    // Caller must not use state_ptr after calling destroy
     unsafe { drop(Box::from_raw(state_ptr)); }
 }
 ```
@@ -936,17 +941,30 @@ pnpm create tauri-app@latest .
 ### 9.1 单元测试
 
 ```bash
-cargo nextest run   # Rust
-pnpm test            # TypeScript
+cargo nextest run     # Rust 单元测试
+cargo tarpaulin       # Rust 覆盖率
+pnpm test             # TypeScript 单元测试
+cargo fuzz run fuzz_target  # 模糊测试
 ```
 
 ### 9.2 E2E 测试
 
 ```bash
-pnpm e2e             # Playwright
+pnpm e2e              # Playwright
 ```
 
 ### 9.3 发布
 
-- Web 端部署 Cloudflare Pages
-- 桌面端 GitHub Releases
+详细发布流程见 `docs/development/08-release-process.md`。
+
+1. 在 develop 分支确认所有功能冻结
+2. 更新 CHANGELOG.md
+3. 提交 PR 合并到 main
+4. 打 Tag: `git tag v1.0.0-beta`
+5. CI 自动构建并发布:
+   - Web 端部署到 Cloudflare Pages
+   - 桌面端发布到 GitHub Releases
+   - 运行时 CLI 发布到 npm / crates.io
+6. 回滚策略:
+   - Cloudflare Pages: 在 Dashboard 中选择上一版本回滚
+   - 桌面端: GitHub Releases 保留旧版本下载链接

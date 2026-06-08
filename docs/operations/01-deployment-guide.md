@@ -1,5 +1,7 @@
 # 01 - 部署指南
 
+> 对应设计文档：`docs/design/architecture/04-deployment.md`
+
 ## Web 端 (Cloudflare Pages)
 
 1. 在 Cloudflare Dashboard 创建 Pages 项目
@@ -32,3 +34,19 @@
 1. 运行 `cargo tauri build`
 2. 上传构建产物到 GitHub Releases
 3. 生成更新清单 (update.json)
+
+### 代码签名
+
+- macOS: Developer ID 证书 + 公证 (notarization)
+- Windows: EV Code Signing Certificate
+- Linux: GPG 签名
+
+### 构建来源证明 (SLSA Level 2+)
+
+- GitHub Actions 生成构建来源证明 (actions/attest-build-provenance)
+- 用户可验证发布包是否由官方 CI 构建
+
+## 扩展进程部署
+
+- 桌面端: 扩展进程二进制包含在 Tauri 安装包中，位于 `resources/sidecars/`
+- Web 端: 扩展进程 Wasm 模块部署到 CDN，按需下载

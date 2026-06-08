@@ -6,6 +6,8 @@
 
 插件 API 允许开发者扩展编辑器的功能（不增加新积木），修改 UI、主题、快捷键等。插件需通过审核才能进入官方市场。
 
+> 对应 API 参考文档：`docs/api/03-plugin-api.md`
+
 2. 插件能力
 
 2.1 UI 扩展
@@ -21,7 +23,8 @@
 
 2.3 快捷键
 
-· 注册快捷键: sailfish.shortcuts.register(command, keybinding, callback)
+· 注册快捷键: sailfish.shortcuts.register(command, config)
+· config 包含 key 和 callback 属性
 · 快捷键冲突时提示用户手动解决
 
 2.4 编辑器钩子
@@ -29,6 +32,11 @@
 · 项目打开/关闭: onProjectOpen(callback), onProjectClose(callback)
 · 保存前/后: onBeforeSave(callback), onAfterSave(callback)
 · 编译前/后: onBeforeCompile(callback), onAfterCompile(callback)
+
+2.5 生命周期
+
+· activate(): 插件激活时调用
+· deactivate(): 插件停用时调用
 
 3. 插件描述文件
 
