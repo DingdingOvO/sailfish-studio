@@ -92,11 +92,11 @@
 
 | 编号 | 文档 | 路径 |
 |------|------|------|
-| C1 | 协作协议 | `docs/design/collaboration/01-protocol.md` |
-| C2 | 房间服务器 | `docs/design/collaboration/02-room-server.md` |
-| C3 | 用户存在感 | `docs/design/collaboration/03-presence.md` |
-| C4 | 冲突解决 | `docs/design/collaboration/04-conflict-resolution.md` |
-| C5 | 离线同步 | `docs/design/collaboration/05-offline-sync.md` |
+| CO1 | 协作协议 | `docs/design/collaboration/01-protocol.md` |
+| CO2 | 房间服务器 | `docs/design/collaboration/02-room-server.md` |
+| CO3 | 用户存在感 | `docs/design/collaboration/03-presence.md` |
+| CO4 | 冲突解决 | `docs/design/collaboration/04-conflict-resolution.md` |
+| CO5 | 离线同步 | `docs/design/collaboration/05-offline-sync.md` |
 
 ## 安全
 

@@ -104,11 +104,11 @@ const SECTIONS = [
     title: '协作设计',
     base: 'docs/design/collaboration/',
     docs: [
-      { file: '01-protocol.md',             label: '协作协议',       num: 'C1' },
-      { file: '02-room-server.md',          label: '房间服务器',     num: 'C2' },
-      { file: '03-presence.md',             label: '用户存在感',     num: 'C3' },
-      { file: '04-conflict-resolution.md',  label: '冲突解决',       num: 'C4' },
-      { file: '05-offline-sync.md',         label: '离线同步',       num: 'C5' },
+      { file: '01-protocol.md',             label: '协作协议',       num: 'CO1' },
+      { file: '02-room-server.md',          label: '房间服务器',     num: 'CO2' },
+      { file: '03-presence.md',             label: '用户存在感',     num: 'CO3' },
+      { file: '04-conflict-resolution.md',  label: '冲突解决',       num: 'CO4' },
+      { file: '05-offline-sync.md',         label: '离线同步',       num: 'CO5' },
     ]
   },
   {

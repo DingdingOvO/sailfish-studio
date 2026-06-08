@@ -1,6 +1,6 @@
 # Sailfish Studio 需求规格说明书
 
-**文档版本**：1.0-Beta.1
+**文档版本**：1.0-Beta.2
 **应用版本**：1.0-Beta
 **日期**：2026-06-07
 **项目代号**：Sailfish Studio (SFS)

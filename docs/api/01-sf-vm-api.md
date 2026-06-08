@@ -10,7 +10,7 @@ sf-vm 编译为 WebAssembly 后，通过 `wasm-bindgen` 导出以下函数供 Ja
 
 ### sf_vm_create() -> *mut RuntimeState
 
-创建新的 RuntimeState，返回裸指针句柄。JavaScript 侧收到的是一个不透明的数值 ID，无需关心内部类型。
+创建新的 RuntimeState，返回裸指针句柄。JavaScript 侧收到的是一个不透明的数值 ID，无需关心内部类型。创建后 WASM 模块会自动调用 `init()` 函数设置 panic hook。
 
 ```js
 const state = sf_vm_create();

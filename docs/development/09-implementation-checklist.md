@@ -1,6 +1,6 @@
 # 09 - 实际开发文档
 
-文档版本：1.0-Beta.1
+文档版本：1.0-Beta.2
 对应需求：docs/requirements/
 对应设计：docs/design/
 目标读者：开发者
@@ -38,21 +38,23 @@
 - 内存：16GB+
 - 磁盘：50GB+ 可用空间
 
-### 1.2 安装 Rust
+### 1.2 安装 Rust (≥ 1.87，edition 2024)
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup default stable
 rustup target add wasm32-unknown-unknown
+rustc --version  # 验证 ≥ 1.87
 ```
 
 ### 1.3 安装 Node.js 与 pnpm
 
 ```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 nvm install 24
 nvm use 24
 corepack enable pnpm
+corepack prepare pnpm@latest --activate
 ```
 
 ### 1.4 安装 Rust 工具链
@@ -136,6 +138,7 @@ members = [
     "sf-storage",
     "sf-audio",
 ]
+resolver = "3"  # Cargo 2024 edition 使用 resolver 3
 ```
 
 创建 `rust-toolchain.toml`:
@@ -166,7 +169,7 @@ cargo init --lib --name sf-vm
 [package]
 name = "sf-vm"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -176,16 +179,18 @@ wasm-bindgen = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
-thiserror = "1"
-wee_alloc = "0.4"
-zip = "0.6"
-rusqlite = { version = "0.31", features = ["bundled"] }
+thiserror = "2"
+zip = "2"
+rusqlite = { version = "0.33", features = ["bundled"] }
 base64 = "0.22"
+console_error_panic_hook = "0.1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 proptest = "1"
 ```
+
+> **注意**：不再使用 `wee_alloc`。该项目已停止维护且存在内存泄漏问题。Rust 默认分配器配合 `wasm-opt -Os` 已提供更优的性能和更小的体积。
 
 #### 3.1.3 实现数据模型
 
@@ -480,8 +485,11 @@ impl SettingsEngine {
 ```rust
 use wasm_bindgen::prelude::*;
 
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+// 初始化 panic hook，WASM panic 时输出完整调用栈到控制台
+#[wasm_bindgen(start)]
+pub fn init() {
+    console_error_panic_hook::set_once();
+}
 
 #[wasm_bindgen]
 pub fn sf_vm_create() -> *mut RuntimeState {
@@ -531,6 +539,14 @@ cargo init --lib --name sf-blocks
 #### 3.7.2 配置 Cargo.toml
 
 ```toml
+[package]
+name = "sf-blocks"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = ["CanvasRenderingContext2d", "Element", "Event", "MouseEvent"] }
@@ -675,11 +691,19 @@ cargo init --lib --name sf-renderer
 #### 3.8.2 配置 Cargo.toml
 
 ```toml
+[package]
+name = "sf-renderer"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = ["WebGl2RenderingContext", "CanvasRenderingContext2d"] }
 lyon = "1"
-resvg = "0.37"
+resvg = "0.44"
 ```
 
 #### 3.8.3 实现 WebGL2 渲染管线
@@ -738,12 +762,20 @@ cargo init --lib --name sf-parser
 #### 3.9.2 配置
 
 ```toml
+[package]
+name = "sf-parser"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-zip = "0.6"
-rusqlite = { version = "0.31", features = ["bundled"] }
-thiserror = "1"
+zip = "2"
+rusqlite = { version = "0.33", features = ["bundled"] }
+thiserror = "2"
 ```
 
 #### 3.9.3 实现
@@ -879,16 +911,50 @@ cargo init --name sf
 使用 clap 构建 CLI:
 
 ```rust
-use clap::{Command, Arg};
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "sf", version, about = "Sailfish Studio Runtime")
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// 运行 .sfl 或 .sfp 文件
+    Run {
+        #[arg(value_name = "FILE")]
+        file: String,
+        /// 有头模式（图形界面）
+        #[arg(long)]
+        headed: bool,
+    },
+    /// 打包为 .sfp
+    Pack {
+        #[arg(value_name = "FILE")]
+        file: String,
+    },
+    /// 创建新项目
+    New {
+        #[arg(value_name = "NAME")]
+        name: String,
+    },
+    /// 检查项目语法
+    Check {
+        #[arg(value_name = "FILE")]
+        file: String,
+    },
+}
 
 fn main() {
-    let matches = Command::new("sf")
-        .subcommand(Command::new("run").arg(Arg::new("file")))
-        .subcommand(Command::new("pack").arg(Arg::new("file")))
-        .subcommand(Command::new("new").arg(Arg::new("name")))
-        .subcommand(Command::new("check").arg(Arg::new("file")))
-        .get_matches();
-    // 处理命令...
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Run { file, headed } => { /* ... */ }
+        Commands::Pack { file } => { /* ... */ }
+        Commands::New { name } => { /* ... */ }
+        Commands::Check { file } => { /* ... */ }
+    }
 }
 ```
 
