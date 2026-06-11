@@ -1,0 +1,15 @@
+[package]
+name = "sf-aot-compiler"
+version.workspace = true
+edition.workspace = true
+description = "Sailfish Studio AOT Compiler - compiles .sf/.sfl to native executables"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+proptest = "1"

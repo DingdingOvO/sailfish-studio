@@ -1,0 +1,11 @@
+/home/z/my-project/sailfish-studio/sf-core/target/debug/deps/deflate64-88c4a1e6706551e8.d: /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/lib.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/buffer.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/huffman_tree.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/inflater_managed.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/input_buffer.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/output_window.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/stream.rs
+
+/home/z/my-project/sailfish-studio/sf-core/target/debug/deps/libdeflate64-88c4a1e6706551e8.rmeta: /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/lib.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/buffer.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/huffman_tree.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/inflater_managed.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/input_buffer.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/output_window.rs /home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/stream.rs
+
+/home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/lib.rs:
+/home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/buffer.rs:
+/home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/huffman_tree.rs:
+/home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/inflater_managed.rs:
+/home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/input_buffer.rs:
+/home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/output_window.rs:
+/home/z/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deflate64-0.1.12/src/stream.rs:

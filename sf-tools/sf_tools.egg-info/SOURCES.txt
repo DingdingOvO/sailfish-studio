@@ -1,0 +1,6 @@
+pyproject.toml
+sf_tools.egg-info/PKG-INFO
+sf_tools.egg-info/SOURCES.txt
+sf_tools.egg-info/dependency_links.txt
+sf_tools.egg-info/requires.txt
+sf_tools.egg-info/top_level.txt

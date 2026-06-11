@@ -1,0 +1,20 @@
+[package]
+name = "sf-parser"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = []
+zip = ["dep:zip"]
+sqlite = ["dep:rusqlite", "dep:tempfile"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+zip = { version = "2", optional = true }
+rusqlite = { version = "0.31", optional = true }
+tempfile = { version = "3", optional = true }
+
+[dev-dependencies]
