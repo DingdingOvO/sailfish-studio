@@ -1,0 +1,115 @@
+{
+    "targets": [
+        {
+            "isStage": true,
+            "name": "Stage",
+            "variables": {},
+            "lists": {},
+            "blocks": {
+                "block_stage_1": {
+                    "opcode": "event_whenflagclicked",
+                    "next": "block_stage_2",
+                    "parent": null,
+                    "inputs": {},
+                    "fields": {}
+                },
+                "block_stage_2": {
+                    "opcode": "looks_say",
+                    "next": null,
+                    "parent": "block_stage_1",
+                    "inputs": {
+                        "MESSAGE": [1, "Welcome to Sailfish Studio!"]
+                    },
+                    "fields": {}
+                }
+            },
+            "costumes": [
+                {
+                    "name": "backdrop1",
+                    "assetId": "abc123def456",
+                    "md5ext": "abc123def456.svg",
+                    "dataFormat": "svg",
+                    "size": 4096
+                }
+            ],
+            "sounds": [],
+            "currentCostume": 0
+        },
+        {
+            "isStage": false,
+            "name": "Cat",
+            "variables": {
+                "i": ["index", 1]
+            },
+            "lists": {},
+            "blocks": {
+                "block_sprite_1": {
+                    "opcode": "event_whenflagclicked",
+                    "next": "block_sprite_2",
+                    "parent": null,
+                    "inputs": {},
+                    "fields": {}
+                },
+                "block_sprite_2": {
+                    "opcode": "control_repeat",
+                    "next": null,
+                    "parent": "block_sprite_1",
+                    "inputs": {
+                        "TIMES": [1, 10],
+                        "SUBSTACK": [2, "block_sprite_3"]
+                    },
+                    "fields": {}
+                },
+                "block_sprite_3": {
+                    "opcode": "motion_forward",
+                    "next": "block_sprite_4",
+                    "parent": "block_sprite_2",
+                    "inputs": {
+                        "STEPS": [1, 20]
+                    },
+                    "fields": {}
+                },
+                "block_sprite_4": {
+                    "opcode": "motion_turnright",
+                    "next": null,
+                    "parent": "block_sprite_3",
+                    "inputs": {
+                        "DEGREES": [1, 15]
+                    },
+                    "fields": {}
+                }
+            },
+            "costumes": [
+                {
+                    "name": "cat-costume1",
+                    "assetId": "cat_svg_hash",
+                    "md5ext": "cat_svg_hash.svg",
+                    "dataFormat": "svg",
+                    "size": 16384
+                },
+                {
+                    "name": "cat-costume2",
+                    "assetId": "cat_png_hash",
+                    "md5ext": "cat_png_hash.png",
+                    "dataFormat": "png",
+                    "size": 32768
+                }
+            ],
+            "sounds": [
+                {
+                    "name": "meow",
+                    "assetId": "meow_wav_hash",
+                    "md5ext": "meow_wav_hash.wav",
+                    "dataFormat": "wav",
+                    "size": 25600
+                }
+            ],
+            "currentCostume": 0
+        }
+    ],
+    "meta": {
+        "semver": "3.0.0",
+        "vm": "0.1.0",
+        "agent": "Sailfish Studio"
+    }
+}
