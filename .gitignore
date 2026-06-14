@@ -1,0 +1,65 @@
+# ========================
+# Sailfish Studio .gitignore
+# ========================
+
+# === Rust / Cargo ===
+target/
+**/*.rs.bk
+# Cargo.lock - keep workspace root lock for reproducible builds
+
+# === Node.js ===
+node_modules/
+dist/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# === IDE / Editor ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# === Build artifacts ===
+*.wasm
+*.pdb
+*.exe
+*.dll
+*.so
+*.dylib
+
+# === Environment / Secrets ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# === Coverage ===
+coverage/
+.nyc_output/
+
+# === Misc ===
+*.log
+.cache/
+.temp/
+tmp/
